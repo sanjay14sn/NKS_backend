@@ -9,6 +9,8 @@ const cookieParser = require('cookie-parser');
 require('dotenv').config();
 
 const connectDB = require('./config/database');
+const User = require('./models/User');
+const bcrypt = require('bcryptjs');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -19,8 +21,40 @@ const favoriteRoutes = require('./routes/favorites');
 
 const app = express();
 
-// Connect to MongoDB
-connectDB();
+// Connect to MongoDB and seed admin
+connectDB().then(async () => {
+  try {
+    const adminEmail = process.env.ADMIN_EMAIL;
+    const adminPassword = process.env.ADMIN_PASSWORD;
+    const adminName = process.env.ADMIN_NAME || "Administrator";
+
+    if (!adminEmail || !adminPassword) {
+      console.warn("⚠️ ADMIN_EMAIL or ADMIN_PASSWORD not set in .env");
+      return;
+    }
+
+    let admin = await User.findOne({ email: adminEmail });
+    if (!admin) {
+      const salt = await bcrypt.genSalt(12);
+      const hashedPassword = await bcrypt.hash(adminPassword, salt);
+
+      admin = new User({
+        name: adminName,
+        email: adminEmail,
+        passwordHash: hashedPassword,
+        role: "admin",
+        isActive: true
+      });
+
+      await admin.save();
+      console.log(`✅ Admin account created: ${adminEmail}`);
+    } else {
+      console.log(`ℹ️ Admin already exists: ${adminEmail}`);
+    }
+  } catch (error) {
+    console.error("❌ Error seeding admin:", error);
+  }
+});
 
 // Security middleware
 app.use(helmet());
@@ -34,7 +68,7 @@ app.use(cookieParser());
 // CORS configuration
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? [process.env.FRONTEND_URL]  // ✅ set in Render env vars
+    ? [process.env.FRONTEND_URL]
     : ['http://localhost:3000', 'http://localhost:5173'],
   credentials: true
 }));

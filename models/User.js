@@ -10,9 +10,15 @@ const userSchema = new mongoose.Schema({
   },
   phone: {
     type: String,
-    required: [true, 'Phone number is required'],
     unique: true,
+    sparse: true, // ✅ allows null for admin (no phone required)
     match: [/^[0-9]{10}$/, 'Please enter a valid 10-digit phone number']
+  },
+  email: {
+    type: String,
+    unique: true,
+    sparse: true, // ✅ allows users without email, but admin will use it
+    match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email address']
   },
   passwordHash: {
     type: String,
