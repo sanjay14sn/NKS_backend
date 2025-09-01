@@ -22,34 +22,35 @@ const favoriteRoutes = require('./routes/favorites');
 const app = express();
 
 // Connect to MongoDB and seed admin
+// Connect to MongoDB and seed admin
 connectDB().then(async () => {
   try {
-    const adminEmail = process.env.ADMIN_EMAIL;
+    const adminPhone = process.env.ADMIN_PHONE || "7868000645"; // ✅ fallback if not in .env
     const adminPassword = process.env.ADMIN_PASSWORD;
     const adminName = process.env.ADMIN_NAME || "Administrator";
 
-    if (!adminEmail || !adminPassword) {
-      console.warn("⚠️ ADMIN_EMAIL or ADMIN_PASSWORD not set in .env");
+    if (!adminPhone || !adminPassword) {
+      console.warn("⚠️ ADMIN_PHONE or ADMIN_PASSWORD not set in .env");
       return;
     }
 
-    let admin = await User.findOne({ email: adminEmail });
+    let admin = await User.findOne({ phone: adminPhone });
     if (!admin) {
       const salt = await bcrypt.genSalt(12);
       const hashedPassword = await bcrypt.hash(adminPassword, salt);
 
       admin = new User({
         name: adminName,
-        email: adminEmail,
+        phone: adminPhone,   // ✅ now using phone
         passwordHash: hashedPassword,
         role: "admin",
         isActive: true
       });
 
       await admin.save();
-      console.log(`✅ Admin account created: ${adminEmail}`);
+      console.log(`✅ Admin account created with phone: ${adminPhone}`);
     } else {
-      console.log(`ℹ️ Admin already exists: ${adminEmail}`);
+      console.log(`ℹ️ Admin already exists with phone: ${adminPhone}`);
     }
   } catch (error) {
     console.error("❌ Error seeding admin:", error);
