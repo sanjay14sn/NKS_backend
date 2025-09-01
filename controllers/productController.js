@@ -4,7 +4,7 @@ const Category = require('../models/Category');
 // Create product (Admin/ShopOwner only)
 const createProduct = async (req, res) => {
   try {
-    const { title, description, aboutProduct, price, stock, category } = req.body;
+    const { title, description, aboutProduct, price, retailerPrice, stock, category } = req.body;
 
     // Verify category exists
     const categoryExists = await Category.findById(category);
@@ -17,16 +17,17 @@ const createProduct = async (req, res) => {
     // Handle uploaded images
     const images = req.files ? req.files.map(file => `/uploads/${file.filename}`) : [];
 
-    const product = new Product({
-      title,
-      description,
-      aboutProduct,
-      price: parseFloat(price),
-      stock: parseInt(stock),
-      category,
-      images,
-      createdBy: req.user.id
-    });
+  const product = new Product({
+  title,
+  description,
+  aboutProduct,
+  price: parseFloat(price),
+  retailerPrice: parseFloat(retailerPrice),
+  stock: parseInt(stock),
+  category,
+  images,
+  createdBy: req.user.id
+});
 
     await product.save();
 
@@ -149,15 +150,17 @@ const updateProduct = async (req, res) => {
     }
 
     // Handle uploaded images
-    let updateData = {
-      title,
-      description,
-      aboutProduct,
-      price: price ? parseFloat(price) : undefined,
-      stock: stock !== undefined ? parseInt(stock) : undefined,
-      category,
-      isActive
-    };
+   let updateData = {
+  title,
+  description,
+  aboutProduct,
+  price: price ? parseFloat(price) : undefined,
+  retailerPrice: retailerPrice ? parseFloat(retailerPrice) : undefined,
+  stock: stock !== undefined ? parseInt(stock) : undefined,
+  category,
+  isActive
+};
+
 
     // Remove undefined values
     Object.keys(updateData).forEach(key => 

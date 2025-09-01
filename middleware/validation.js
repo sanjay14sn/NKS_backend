@@ -91,6 +91,7 @@ const validateCategory = [
 ];
 
 // Product validation
+// Product validation
 const validateProduct = [
   body('title')
     .trim()
@@ -108,6 +109,9 @@ const validateProduct = [
   body('price')
     .isFloat({ min: 0 })
     .withMessage('Price must be a positive number'),
+  body('retailerPrice')
+    .isFloat({ min: 0 })
+    .withMessage('Retailer price must be a positive number'),
   body('stock')
     .isInt({ min: 0 })
     .withMessage('Stock must be a non-negative integer'),
@@ -116,6 +120,7 @@ const validateProduct = [
     .withMessage('Invalid category ID'),
   handleValidationErrors
 ];
+
 
 // Order validation
 const validateOrder = [
