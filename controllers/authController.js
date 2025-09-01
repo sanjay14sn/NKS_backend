@@ -112,15 +112,22 @@ const signupShopOwner = async (req, res) => {
 };
 
 // Login
+// Login
 const login = async (req, res) => {
   try {
-    const { phone, password } = req.body;
+    const { phone, email, password } = req.body;
 
-    // Find user by phone
-    const user = await User.findOne({ phone, isActive: true });
+    // Find user by phone or email
+    const user = await User.findOne({
+      $or: [
+        phone ? { phone, isActive: true } : {},
+        email ? { email, isActive: true } : {}
+      ]
+    });
+
     if (!user) {
       return res.status(401).json({
-        error: 'Invalid phone number or password'
+        error: 'Invalid credentials'
       });
     }
 
@@ -128,7 +135,7 @@ const login = async (req, res) => {
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
       return res.status(401).json({
-        error: 'Invalid phone number or password'
+        error: 'Invalid credentials'
       });
     }
 
@@ -142,6 +149,7 @@ const login = async (req, res) => {
         id: user._id,
         name: user.name,
         phone: user.phone,
+        email: user.email,
         role: user.role,
         gstNumber: user.gstNumber,
         shopName: user.shopName
@@ -154,6 +162,7 @@ const login = async (req, res) => {
     });
   }
 };
+
 
 // Get current user profile
 const getProfile = async (req, res) => {
