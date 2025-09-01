@@ -4,6 +4,8 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
+const compression = require('compression');
+const cookieParser = require('cookie-parser');
 require('dotenv').config();
 
 const connectDB = require('./config/database');
@@ -23,10 +25,16 @@ connectDB();
 // Security middleware
 app.use(helmet());
 
+// Compression middleware (better performance)
+app.use(compression());
+
+// Cookie parser (needed if auth tokens are stored in cookies)
+app.use(cookieParser());
+
 // CORS configuration
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://yourdomain.com'] 
+    ? [process.env.FRONTEND_URL]  // ✅ set in Render env vars
     : ['http://localhost:3000', 'http://localhost:5173'],
   credentials: true
 }));
@@ -105,7 +113,7 @@ app.use('*', (req, res) => {
   });
 });
 
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 5003;
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
