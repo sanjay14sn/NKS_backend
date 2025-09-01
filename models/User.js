@@ -12,13 +12,27 @@ const userSchema = new mongoose.Schema({
     type: String,
     unique: true,
     sparse: true, // ✅ allows null for admin (no phone required)
-    match: [/^[0-9]{10}$/, 'Please enter a valid 10-digit phone number']
+    validate: {
+      validator: function(v) {
+        // only validate if phone is provided
+        return !v || /^[0-9]{10}$/.test(v);
+      },
+      message: 'Please enter a valid 10-digit phone number'
+    }
   },
   email: {
     type: String,
     unique: true,
     sparse: true, // ✅ allows users without email, but admin will use it
-    match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email address']
+    lowercase: true,
+    trim: true,
+    validate: {
+      validator: function(v) {
+        // only validate if email is provided
+        return !v || /^\S+@\S+\.\S+$/.test(v);
+      },
+      message: 'Please enter a valid email address'
+    }
   },
   passwordHash: {
     type: String,
