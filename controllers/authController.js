@@ -10,7 +10,7 @@ const generateToken = (userId) => {
   );
 };
 
-// User signup
+// ===================== SIGNUP USER =====================
 const signupUser = async (req, res) => {
   try {
     const { name, phone, password, referral } = req.body;
@@ -23,13 +23,12 @@ const signupUser = async (req, res) => {
     const user = new User({
       name,
       phone,
-      passwordHash: password,
+      passwordHash: password, // ⚠️ ensure hashing in User model
       role: 'user',
-      referral
+      referral,
     });
 
     await user.save();
-
     const token = generateToken(user._id);
 
     res.status(201).json({
@@ -40,8 +39,8 @@ const signupUser = async (req, res) => {
         name: user.name,
         phone: user.phone,
         role: user.role,
-        referral: user.referral
-      }
+        referral: user.referral,
+      },
     });
   } catch (error) {
     console.error('User signup error:', error);
@@ -49,7 +48,7 @@ const signupUser = async (req, res) => {
   }
 };
 
-// ShopOwner/Electrician signup
+// ===================== SIGNUP SHOP OWNER/ELECTRICIAN =====================
 const signupShopOwner = async (req, res) => {
   try {
     const { name, phone, password, gstNumber, shopName, role } = req.body;
@@ -66,14 +65,13 @@ const signupShopOwner = async (req, res) => {
     const shopOwner = new User({
       name,
       phone,
-      passwordHash: password,
+      passwordHash: password, // ⚠️ hashing handled in User model
       role,
       gstNumber,
-      shopName
+      shopName,
     });
 
     await shopOwner.save();
-
     const token = generateToken(shopOwner._id);
 
     res.status(201).json({
@@ -85,8 +83,8 @@ const signupShopOwner = async (req, res) => {
         phone: shopOwner.phone,
         role: shopOwner.role,
         gstNumber: shopOwner.gstNumber,
-        shopName: shopOwner.shopName
-      }
+        shopName: shopOwner.shopName,
+      },
     });
   } catch (error) {
     console.error('Shop owner signup error:', error);
@@ -94,7 +92,7 @@ const signupShopOwner = async (req, res) => {
   }
 };
 
-// ✅ Fixed login
+// ===================== LOGIN =====================
 const login = async (req, res) => {
   try {
     const { phone, email, password } = req.body;
@@ -103,22 +101,16 @@ const login = async (req, res) => {
       return res.status(400).json({ error: 'Please provide phone or email' });
     }
 
-    // build query dynamically
     const query = {};
     if (phone) query.phone = phone;
     if (email) query.email = email;
     query.isActive = true;
 
     const user = await User.findOne(query);
-
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
+    if (!user) return res.status(401).json({ error: 'Invalid credentials' });
 
     const isPasswordValid = await user.comparePassword(password);
-    if (!isPasswordValid) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
+    if (!isPasswordValid) return res.status(401).json({ error: 'Invalid credentials' });
 
     const token = generateToken(user._id);
 
@@ -132,8 +124,8 @@ const login = async (req, res) => {
         email: user.email,
         role: user.role,
         gstNumber: user.gstNumber,
-        shopName: user.shopName
-      }
+        shopName: user.shopName,
+      },
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -141,10 +133,12 @@ const login = async (req, res) => {
   }
 };
 
-// Get current user profile
+// ===================== GET PROFILE =====================
 const getProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).populate('favorites', 'title price images');
+
+    if (!user) return res.status(404).json({ error: 'User not found' });
 
     res.json({
       user: {
@@ -156,8 +150,8 @@ const getProfile = async (req, res) => {
         shopName: user.shopName,
         referral: user.referral,
         favorites: user.favorites,
-        createdAt: user.createdAt
-      }
+        createdAt: user.createdAt,
+      },
     });
   } catch (error) {
     console.error('Get profile error:', error);
@@ -165,9 +159,27 @@ const getProfile = async (req, res) => {
   }
 };
 
+// ===================== ADMIN GET ALL USERS =====================
+const getAllUsers = async (req, res) => {
+  try {
+    const users = await User.find()
+      .select('-passwordHash')
+      .sort({ createdAt: -1 });
+
+    res.json({
+      message: 'Users fetched successfully',
+      users,
+    });
+  } catch (error) {
+    console.error('Get all users error:', error);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+};
+
 module.exports = {
   signupUser,
   signupShopOwner,
   login,
-  getProfile
+  getProfile,
+  getAllUsers,
 };

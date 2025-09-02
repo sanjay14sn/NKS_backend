@@ -126,6 +126,12 @@ GET /api/auth/profile
 curl -X GET http://localhost:5000/api/auth/profile \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
+#### 5.Get All Users (Admin only, requires token)
+
+GET /api/auth/users
+curl -X GET http://localhost:5006/api/auth/users \
+  -H "Authorization: Bearer YOUR_ADMIN_JWT_TOKEN"
+
 
 ### Categories
 

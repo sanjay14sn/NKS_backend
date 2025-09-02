@@ -1,3 +1,4 @@
+// server.js
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -6,6 +7,7 @@ const rateLimit = require('express-rate-limit');
 const path = require('path');
 const compression = require('compression');
 const cookieParser = require('cookie-parser');
+const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
 const connectDB = require('./config/database');
@@ -27,7 +29,7 @@ connectDB().then(async () => {
   try {
     const adminEmail = process.env.ADMIN_EMAIL;
     const adminPassword = process.env.ADMIN_PASSWORD;
-    const adminName = process.env.ADMIN_NAME;
+    const adminName = process.env.ADMIN_NAME || "Super Admin";
 
     if (!adminEmail || !adminPassword) {
       console.warn("⚠️ ADMIN_EMAIL or ADMIN_PASSWORD not set in .env");
@@ -36,10 +38,12 @@ connectDB().then(async () => {
 
     let admin = await User.findOne({ email: adminEmail });
     if (!admin) {
+      const hashedPassword = await bcrypt.hash(adminPassword, 10);
+
       admin = new User({
         name: adminName,
         email: adminEmail,
-        passwordHash: adminPassword, // store hashed in production if needed
+        passwordHash: hashedPassword,
         role: "admin",
         isActive: true
       });
@@ -67,7 +71,7 @@ const allowedOrigins = process.env.CLIENT_URLS?.split(',').map(u => u.trim()) ||
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error(`CORS blocked: ${origin}`));
@@ -80,8 +84,8 @@ app.use(cors({
 // Rate Limiting
 // ===========================
 const limiter = rateLimit({
-  windowMs: (process.env.RATE_LIMIT_WINDOW || 15) * 60 * 1000,
-  max: process.env.RATE_LIMIT_MAX_REQUESTS || 100,
+  windowMs: (process.env.RATE_LIMIT_WINDOW || 15) * 60 * 1000, // default 15 min
+  max: process.env.RATE_LIMIT_MAX_REQUESTS || 100, // default 100 requests
   message: { error: 'Too many requests from this IP, please try again later.' }
 });
 app.use('/api/', limiter);
@@ -89,7 +93,7 @@ app.use('/api/', limiter);
 // ===========================
 // Logging & Body Parsing
 // ===========================
-app.use(morgan('combined'));
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -119,10 +123,10 @@ app.get('/api/health', (req, res) => {
 });
 
 // ===========================
-// Error Handling
+// Error Handling Middleware
 // ===========================
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  console.error("❌ Error Handler:", err);
 
   if (err.name === 'ValidationError') {
     return res.status(400).json({
@@ -147,15 +151,20 @@ app.use((err, req, res, next) => {
   });
 });
 
+// ===========================
 // 404 Handler
+// ===========================
 app.use('*', (req, res) => {
   res.status(404).json({ error: 'Route not found' });
-
 });
 
+// ===========================
+// Start Server
+// ===========================
 const PORT = process.env.PORT || 5006;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📱 Environment: ${process.env.NODE_ENV}`);
 });
+
 module.exports = app;

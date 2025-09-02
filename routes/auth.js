@@ -1,20 +1,56 @@
 const express = require('express');
 const router = express.Router();
 
-const { signupUser, signupShopOwner, login, getProfile } = require('../controllers/authController');
-const { authenticate } = require('../middleware/auth');
-const { validateUserSignup, validateShopOwnerSignup, validateLogin } = require('../middleware/validation');
+// Controllers
+const {
+  signupUser,
+  signupShopOwner,
+  login,
+  getProfile,
+  getAllUsers,
+} = require('../controllers/authController');
 
-// User signup
+// Middlewares
+const { authenticate, isAdmin } = require('../middleware/auth');
+const {
+  validateUserSignup,
+  validateShopOwnerSignup,
+  validateLogin,
+} = require('../middleware/validation');
+
+/**
+ * @route   GET /api/auth/users
+ * @desc    Get all users (Admin only)
+ * @access  Private/Admin
+ */
+router.get('/users', authenticate, isAdmin, getAllUsers);
+
+/**
+ * @route   POST /api/auth/signup/user
+ * @desc    Register a normal user
+ * @access  Public
+ */
 router.post('/signup/user', validateUserSignup, signupUser);
 
-// ShopOwner/Electrician signup
+/**
+ * @route   POST /api/auth/signup/shopowner
+ * @desc    Register shopowner or electrician
+ * @access  Public
+ */
 router.post('/signup/shopowner', validateShopOwnerSignup, signupShopOwner);
 
-// Login
+/**
+ * @route   POST /api/auth/login
+ * @desc    Login user (phone/email + password)
+ * @access  Public
+ */
 router.post('/login', validateLogin, login);
 
-// Get current user profile
+/**
+ * @route   GET /api/auth/profile
+ * @desc    Get logged-in user profile
+ * @access  Private
+ */
 router.get('/profile', authenticate, getProfile);
 
 module.exports = router;
