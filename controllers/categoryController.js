@@ -1,6 +1,7 @@
 const Category = require('../models/Category');
 
 // Create category (Admin only)
+// Create category (Admin only)
 const createCategory = async (req, res) => {
   try {
     const { title, description, slug } = req.body;
@@ -8,29 +9,47 @@ const createCategory = async (req, res) => {
     const category = new Category({
       title,
       description,
-      slug
+      slug,
+      image: req.file ? req.file.path : null
     });
 
     await category.save();
 
     res.status(201).json({
-      message: 'Category created successfully',
+      message: "Category created successfully",
       category
     });
   } catch (error) {
-    console.error('Create category error:', error);
-    
-    if (error.code === 11000) {
-      return res.status(400).json({
-        error: 'Category with this slug already exists'
-      });
-    }
-    
-    res.status(500).json({
-      error: 'Failed to create category'
-    });
+    console.error("Create category error:", error);
+    res.status(500).json({ error: "Failed to create category" });
   }
 };
+
+// Update category (Admin only)
+const updateCategory = async (req, res) => {
+  try {
+    const { title, description, slug, isActive } = req.body;
+
+    const updateData = { title, description, slug, isActive };
+    if (req.file) updateData.image = req.file.path;
+
+    const category = await Category.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true, runValidators: true }
+    );
+
+    if (!category) {
+      return res.status(404).json({ error: "Category not found" });
+    }
+
+    res.json({ message: "Category updated successfully", category });
+  } catch (error) {
+    console.error("Update category error:", error);
+    res.status(500).json({ error: "Failed to update category" });
+  }
+};
+
 
 // Get all categories
 const getCategories = async (req, res) => {
@@ -73,41 +92,6 @@ const getCategory = async (req, res) => {
 };
 
 // Update category (Admin only)
-const updateCategory = async (req, res) => {
-  try {
-    const { title, description, slug, isActive } = req.body;
-    
-    const category = await Category.findByIdAndUpdate(
-      req.params.id,
-      { title, description, slug, isActive },
-      { new: true, runValidators: true }
-    );
-
-    if (!category) {
-      return res.status(404).json({
-        error: 'Category not found'
-      });
-    }
-
-    res.json({
-      message: 'Category updated successfully',
-      category
-    });
-  } catch (error) {
-    console.error('Update category error:', error);
-    
-    if (error.code === 11000) {
-      return res.status(400).json({
-        error: 'Category with this slug already exists'
-      });
-    }
-    
-    res.status(500).json({
-      error: 'Failed to update category'
-    });
-  }
-};
-
 // Delete category (Admin only)
 const deleteCategory = async (req, res) => {
   try {
