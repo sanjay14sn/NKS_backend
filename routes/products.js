@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const Product = require('../models/Product');
 
 const {
   createProduct,
@@ -12,12 +13,9 @@ const {
 
 const { authenticate, isAdmin, isShopOwner, isUser } = require('../middleware/auth');
 const { validateProduct, validateObjectId, validatePagination } = require('../middleware/validation');
-const upload = require('../config/multer');
-const Product = require('../models/Product');
+const { uploadProduct } = require('../config/cloudinary');
 
-// =====================
 // Public routes
-// =====================
 router.get('/', validatePagination, getProducts);
 router.get('/:id', validateObjectId, getProduct);
 
@@ -28,7 +26,6 @@ router.get('/filters/featured', async (req, res) => {
       .populate('category', 'title slug')
       .sort('-createdAt')
       .limit(20);
-
     res.json({ products, count: products.length });
   } catch (error) {
     console.error('❌ Get featured products error:', error);
@@ -43,7 +40,6 @@ router.get('/filters/trending', async (req, res) => {
       .populate('category', 'title slug')
       .sort('-createdAt')
       .limit(20);
-
     res.json({ products, count: products.length });
   } catch (error) {
     console.error('❌ Get trending products error:', error);
@@ -51,19 +47,15 @@ router.get('/filters/trending', async (req, res) => {
   }
 });
 
-// =====================
 // User routes
-// =====================
 router.post('/:id/rate', authenticate, isUser, validateObjectId, rateProduct);
 
-// =====================
 // Shop owner/Admin routes
-// =====================
 router.post(
   '/',
   authenticate,
   isShopOwner,
-  upload.array('images', 5),
+  uploadProduct.array('images', 5), // Cloudinary upload
   validateProduct,
   createProduct
 );
@@ -73,13 +65,11 @@ router.put(
   authenticate,
   isShopOwner,
   validateObjectId,
-  upload.array('images', 5),
+  uploadProduct.array('images', 5),
   updateProduct
 );
 
-// =====================
 // Admin only routes
-// =====================
 router.delete('/:id', authenticate, isAdmin, validateObjectId, deleteProduct);
 
 module.exports = router;
