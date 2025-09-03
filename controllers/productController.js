@@ -4,7 +4,7 @@ const Category = require('../models/Category');
 // Create product (Admin/ShopOwner only)
 const createProduct = async (req, res) => {
   try {
-    const { title, description, aboutProduct, price, retailerPrice, stock, category } = req.body;
+    const { title, description, aboutProduct, price, retailerPrice, stock, category, isFeatured, isTrending } = req.body;
 
     // Verify category exists
     const categoryExists = await Category.findById(category);
@@ -26,6 +26,8 @@ const createProduct = async (req, res) => {
   stock: parseInt(stock),
   category,
   images,
+   isFeatured: isFeatured === 'true' || isFeatured === true,
+  isTrending: isTrending === 'true' || isTrending === true,
   createdBy: req.user.id
 });
 
@@ -149,8 +151,7 @@ const updateProduct = async (req, res) => {
       }
     }
 
-    // Handle uploaded images
-   let updateData = {
+     let updateData = {
   title,
   description,
   aboutProduct,
@@ -158,7 +159,9 @@ const updateProduct = async (req, res) => {
   retailerPrice: retailerPrice ? parseFloat(retailerPrice) : undefined,
   stock: stock !== undefined ? parseInt(stock) : undefined,
   category,
-  isActive
+  isActive,
+  isFeatured: typeof isFeatured !== 'undefined' ? (isFeatured === 'true' || isFeatured === true) : undefined,
+  isTrending: typeof isTrending !== 'undefined' ? (isTrending === 'true' || isTrending === true) : undefined
 };
 
 

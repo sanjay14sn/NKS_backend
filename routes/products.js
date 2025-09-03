@@ -13,19 +13,73 @@ const {
 const { authenticate, isAdmin, isShopOwner, isUser } = require('../middleware/auth');
 const { validateProduct, validateObjectId, validatePagination } = require('../middleware/validation');
 const upload = require('../config/multer');
+const Product = require('../models/Product');
 
+// =====================
 // Public routes
+// =====================
 router.get('/', validatePagination, getProducts);
 router.get('/:id', validateObjectId, getProduct);
 
+// Featured Products
+router.get('/filters/featured', async (req, res) => {
+  try {
+    const products = await Product.find({ isFeatured: true, isActive: true })
+      .populate('category', 'title slug')
+      .sort('-createdAt')
+      .limit(20);
+
+    res.json({ products, count: products.length });
+  } catch (error) {
+    console.error('❌ Get featured products error:', error);
+    res.status(500).json({ error: 'Failed to fetch featured products' });
+  }
+});
+
+// Trending Products
+router.get('/filters/trending', async (req, res) => {
+  try {
+    const products = await Product.find({ isTrending: true, isActive: true })
+      .populate('category', 'title slug')
+      .sort('-createdAt')
+      .limit(20);
+
+    res.json({ products, count: products.length });
+  } catch (error) {
+    console.error('❌ Get trending products error:', error);
+    res.status(500).json({ error: 'Failed to fetch trending products' });
+  }
+});
+
+// =====================
 // User routes
+// =====================
 router.post('/:id/rate', authenticate, isUser, validateObjectId, rateProduct);
 
+// =====================
 // Shop owner/Admin routes
-router.post('/', authenticate, isShopOwner, upload.array('images', 5), validateProduct, createProduct);
-router.put('/:id', authenticate, isShopOwner, validateObjectId, upload.array('images', 5), updateProduct);
+// =====================
+router.post(
+  '/',
+  authenticate,
+  isShopOwner,
+  upload.array('images', 5),
+  validateProduct,
+  createProduct
+);
 
+router.put(
+  '/:id',
+  authenticate,
+  isShopOwner,
+  validateObjectId,
+  upload.array('images', 5),
+  updateProduct
+);
+
+// =====================
 // Admin only routes
+// =====================
 router.delete('/:id', authenticate, isAdmin, validateObjectId, deleteProduct);
 
 module.exports = router;
