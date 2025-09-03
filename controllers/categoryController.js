@@ -1,5 +1,5 @@
-const Category = require('../models/Category');
-const { cloudinary } = require('../config/cloudinary');
+const Category = require("../models/Category");
+const { cloudinary } = require("../config/cloudinary");
 
 // ======================
 // Create Category (Admin only)
@@ -8,10 +8,29 @@ const createCategory = async (req, res) => {
   try {
     const { title, description, slug } = req.body;
 
+    // Generate base slug
+    let baseSlug =
+      slug ||
+      title
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, "")
+        .replace(/\s+/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-+|-+$/g, ""); // trim dashes
+
+    let finalSlug = baseSlug;
+    let counter = 1;
+
+    // Check if slug already exists → append -1, -2...
+    while (await Category.findOne({ slug: finalSlug })) {
+      finalSlug = `${baseSlug}-${counter++}`;
+    }
+
+    // Handle image
     let imageData = null;
     if (req.file) {
       imageData = {
-        url: req.file.path,        // Cloudinary secure_url
+        url: req.file.path, // Cloudinary URL
         public_id: req.file.filename, // Cloudinary public_id
       };
     }
@@ -19,19 +38,19 @@ const createCategory = async (req, res) => {
     const category = new Category({
       title,
       description,
-      slug,
+      slug: finalSlug,
       image: imageData,
     });
 
     await category.save();
 
     res.status(201).json({
-      message: 'Category created successfully',
+      message: "Category created successfully",
       category,
     });
   } catch (error) {
-    console.error('❌ Create category error:', error);
-    res.status(500).json({ error: 'Failed to create category' });
+    console.error("❌ Create category error:", error);
+    res.status(500).json({ error: "Failed to create category" });
   }
 };
 
@@ -44,7 +63,7 @@ const updateCategory = async (req, res) => {
 
     const category = await Category.findById(req.params.id);
     if (!category) {
-      return res.status(404).json({ error: 'Category not found' });
+      return res.status(404).json({ error: "Category not found" });
     }
 
     // If a new image is uploaded, delete old image from Cloudinary
@@ -61,19 +80,33 @@ const updateCategory = async (req, res) => {
     // Update other fields
     category.title = title || category.title;
     category.description = description || category.description;
-    category.slug = slug || category.slug;
+
+    if (slug) {
+      let baseSlug = slug.toLowerCase();
+      let finalSlug = baseSlug;
+      let counter = 1;
+
+      while (
+        await Category.findOne({ slug: finalSlug, _id: { $ne: category._id } })
+      ) {
+        finalSlug = `${baseSlug}-${counter++}`;
+      }
+
+      category.slug = finalSlug;
+    }
+
     category.isActive =
-      typeof isActive !== 'undefined' ? isActive : category.isActive;
+      typeof isActive !== "undefined" ? isActive : category.isActive;
 
     await category.save();
 
     res.json({
-      message: 'Category updated successfully',
+      message: "Category updated successfully",
       category,
     });
   } catch (error) {
-    console.error('❌ Update category error:', error);
-    res.status(500).json({ error: 'Failed to update category' });
+    console.error("❌ Update category error:", error);
+    res.status(500).json({ error: "Failed to update category" });
   }
 };
 
@@ -82,8 +115,8 @@ const updateCategory = async (req, res) => {
 // ======================
 const getCategories = async (req, res) => {
   try {
-    const { active = 'true' } = req.query;
-    const filter = active === 'true' ? { isActive: true } : {};
+    const { active = "true" } = req.query;
+    const filter = active === "true" ? { isActive: true } : {};
 
     const categories = await Category.find(filter).sort({ title: 1 });
 
@@ -92,9 +125,9 @@ const getCategories = async (req, res) => {
       count: categories.length,
     });
   } catch (error) {
-    console.error('❌ Get categories error:', error);
+    console.error("❌ Get categories error:", error);
     res.status(500).json({
-      error: 'Failed to fetch categories',
+      error: "Failed to fetch categories",
     });
   }
 };
@@ -108,15 +141,15 @@ const getCategory = async (req, res) => {
 
     if (!category) {
       return res.status(404).json({
-        error: 'Category not found',
+        error: "Category not found",
       });
     }
 
     res.json({ category });
   } catch (error) {
-    console.error('❌ Get category error:', error);
+    console.error("❌ Get category error:", error);
     res.status(500).json({
-      error: 'Failed to fetch category',
+      error: "Failed to fetch category",
     });
   }
 };
@@ -129,7 +162,7 @@ const deleteCategory = async (req, res) => {
     const category = await Category.findByIdAndDelete(req.params.id);
 
     if (!category) {
-      return res.status(404).json({ error: 'Category not found' });
+      return res.status(404).json({ error: "Category not found" });
     }
 
     // Delete image from Cloudinary if exists
@@ -138,12 +171,12 @@ const deleteCategory = async (req, res) => {
     }
 
     res.json({
-      message: 'Category deleted successfully',
+      message: "Category deleted successfully",
     });
   } catch (error) {
-    console.error('❌ Delete category error:', error);
+    console.error("❌ Delete category error:", error);
     res.status(500).json({
-      error: 'Failed to delete category',
+      error: "Failed to delete category",
     });
   }
 };
