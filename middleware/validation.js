@@ -154,6 +154,62 @@ const validateOrder = [
   handleValidationErrors
 ];
 
+// Shop validation
+const validateShop = [
+  body('shopName')
+    .trim()
+    .isLength({ min: 2, max: 200 })
+    .withMessage('Shop name must be between 2 and 200 characters'),
+  body('ownerName')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('Owner name cannot exceed 100 characters'),
+  body('contactInfo.phone')
+    .optional()
+    .isMobilePhone('en-IN')
+    .withMessage('Please enter a valid phone number'),
+  body('contactInfo.email')
+    .optional()
+    .isEmail()
+    .withMessage('Please enter a valid email address'),
+  body('address.zipCode')
+    .optional()
+    .matches(/^[0-9]{6}$/)
+    .withMessage('Please enter a valid 6-digit ZIP code'),
+  body('assignOwner')
+    .optional()
+    .isMongoId()
+    .withMessage('Invalid owner ID'),
+  handleValidationErrors
+];
+
+// Purchase validation
+const validatePurchase = [
+  body('shopId')
+    .isMongoId()
+    .withMessage('Invalid shop ID'),
+  body('purchaseAmount')
+    .isFloat({ min: 0 })
+    .withMessage('Purchase amount must be a positive number'),
+  body('products')
+    .optional()
+    .isArray()
+    .withMessage('Products must be an array'),
+  body('products.*.product')
+    .optional()
+    .isMongoId()
+    .withMessage('Invalid product ID'),
+  body('products.*.quantity')
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage('Quantity must be at least 1'),
+  body('paymentMethod')
+    .optional()
+    .isIn(['qr', 'cash', 'card', 'online'])
+    .withMessage('Invalid payment method'),
+  handleValidationErrors
+];
 // Parameter validation
 const validateObjectId = [
   param('id').isMongoId().withMessage('Invalid ID format'),
@@ -184,6 +240,8 @@ module.exports = {
   validateCategory,
   validateProduct,
   validateOrder,
+  validateShop,
+  validatePurchase,
   validateObjectId,
   validatePagination,
   handleValidationErrors

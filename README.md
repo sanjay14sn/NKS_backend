@@ -272,12 +272,165 @@ curl -X GET http://localhost:5000/api/favorites \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
+### Shops Management
+
+#### 17. Create Shop (Admin only)
+```bash
+POST /api/shops
+
+curl -X POST http://localhost:5000/api/shops \
+  -H "Authorization: Bearer YOUR_ADMIN_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "shopName": "Electronics Paradise",
+    "ownerName": "John Smith",
+    "contactInfo": {
+      "phone": "9876543210",
+      "email": "shop@example.com"
+    },
+    "address": {
+      "street": "123 Market Street",
+      "city": "Mumbai",
+      "state": "Maharashtra",
+      "zipCode": "400001"
+    },
+    "assignOwner": "USER_ID_OF_SHOP_OWNER"
+  }'
+```
+
+#### 18. Get All Shops (Admin only)
+```bash
+GET /api/shops
+
+curl -X GET http://localhost:5000/api/shops \
+  -H "Authorization: Bearer YOUR_ADMIN_JWT_TOKEN"
+```
+
+#### 19. Get Shop by QR Code (Public)
+```bash
+GET /api/shops/qr/:qrId
+
+curl -X GET http://localhost:5000/api/shops/qr/QR_ID
+```
+
+#### 20. Get Shop Dashboard (Shop Owner/Admin)
+```bash
+GET /api/shops/:id/dashboard
+
+curl -X GET http://localhost:5000/api/shops/SHOP_ID/dashboard \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+#### 21. Get My Shops (Shop Owner)
+```bash
+GET /api/shops/my-shops
+
+curl -X GET http://localhost:5000/api/shops/my-shops \
+  -H "Authorization: Bearer YOUR_SHOP_OWNER_JWT_TOKEN"
+```
+
+### Purchase Management
+
+#### 22. Record Purchase (QR Scan)
+```bash
+POST /api/purchases
+
+curl -X POST http://localhost:5000/api/purchases \
+  -H "Content-Type: application/json" \
+  -d '{
+    "shopId": "SHOP_ID",
+    "purchaseAmount": 500,
+    "products": [
+      {
+        "product": "PRODUCT_ID",
+        "quantity": 2
+      }
+    ],
+    "paymentMethod": "qr",
+    "customerInfo": {
+      "name": "Customer Name",
+      "phone": "9876543210"
+    },
+    "notes": "QR code purchase"
+  }'
+```
+
+#### 23. Get All Purchases (Admin only)
+```bash
+GET /api/purchases
+
+curl -X GET http://localhost:5000/api/purchases \
+  -H "Authorization: Bearer YOUR_ADMIN_JWT_TOKEN"
+```
+
+#### 24. Get Shop Purchases (Shop Owner/Admin)
+```bash
+GET /api/purchases/shop/:shopId
+
+curl -X GET http://localhost:5000/api/purchases/shop/SHOP_ID \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+#### 25. Get My Purchases (User)
+```bash
+GET /api/purchases/my-purchases
+
+curl -X GET http://localhost:5000/api/purchases/my-purchases \
+  -H "Authorization: Bearer YOUR_USER_JWT_TOKEN"
+```
+
+#### 26. Get Purchase Analytics (Admin only)
+```bash
+GET /api/purchases/analytics?period=month
+
+curl -X GET "http://localhost:5000/api/purchases/analytics?period=month" \
+  -H "Authorization: Bearer YOUR_ADMIN_JWT_TOKEN"
+```
+
 ## User Roles
 
 - **User**: Can browse products, place orders, manage favorites
 - **Shop Owner**: Can create and manage products, plus all user permissions
 - **Electrician**: Same as shop owner
 - **Admin**: Full access to all endpoints, user management, order management
+
+## Shop & QR Code System
+
+### How it Works
+
+1. **Admin Creates Shops**: Admin can create shops with owner assignment
+2. **QR Code Generation**: Each shop gets a unique QR code for payments
+3. **Customer Scanning**: Customers scan QR codes to make purchases
+4. **Purchase Tracking**: All purchases are tracked per shop
+5. **Dashboard Analytics**: Shop owners and admin can view sales data
+
+### QR Code Structure
+
+Each QR code contains:
+```json
+{
+  "shopId": "shop_mongodb_id",
+  "shopName": "Shop Name",
+  "qrId": "unique_qr_identifier",
+  "type": "shop_payment",
+  "adminPaymentInfo": "admin@payment.com"
+}
+```
+
+### Shop Owner Workflow
+
+1. Admin creates shop and assigns owner
+2. Shop owner logs in with existing credentials
+3. Views shop dashboard with sales data
+4. Monitors purchases and revenue
+
+### Customer Purchase Flow
+
+1. Customer scans shop QR code
+2. Frontend gets shop details via `/api/shops/qr/:qrId`
+3. Customer selects products and quantity
+4. Purchase is recorded via `/api/purchases`
+5. Shop revenue is automatically updated
 
 ## Testing
 

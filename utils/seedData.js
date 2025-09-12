@@ -6,6 +6,10 @@ const connectDB = require('../config/database');
 const User = require('../models/User');
 const Category = require('../models/Category');
 const Product = require('../models/Product');
+const Shop = require('../models/Shop');
+const Purchase = require('../models/Purchase');
+const QRCode = require('qrcode');
+const { v4: uuidv4 } = require('uuid');
 
 const seedData = async () => {
   try {
@@ -16,6 +20,8 @@ const seedData = async () => {
     await User.deleteMany({});
     await Category.deleteMany({});
     await Product.deleteMany({});
+    await Shop.deleteMany({});
+    await Purchase.deleteMany({});
 
     // Create admin user
     console.log('👤 Creating admin user...');
@@ -201,13 +207,123 @@ const seedData = async () => {
 
     await Product.insertMany(products);
 
+    // Create sample shops
+    console.log('🏪 Creating sample shops...');
+    const shops = [];
+    
+    for (let i = 1; i <= 3; i++) {
+      const qrId = uuidv4();
+      const shopData = {
+        shopName: `Electronics Shop ${i}`,
+        ownerName: i === 1 ? shopOwner.name : (i === 2 ? electrician.name : null),
+        contactInfo: {
+          phone: `987654321${i}`,
+          email: `shop${i}@example.com`
+        },
+        address: {
+          street: `${i}23 Market Street`,
+          city: 'Mumbai',
+          state: 'Maharashtra',
+          zipCode: '400001'
+        },
+        shopOwner: i === 1 ? shopOwner._id : (i === 2 ? electrician._id : null),
+        createdBy: admin._id
+      };
+
+      const qrData = JSON.stringify({
+        shopId: 'temp',
+        shopName: shopData.shopName,
+        qrId: qrId,
+        type: 'shop_payment',
+        adminPaymentInfo: process.env.ADMIN_PAYMENT_INFO || 'admin@payment.com'
+      });
+
+      const qrCodeImage = await QRCode.toDataURL(qrData, {
+        errorCorrectionLevel: 'M',
+        type: 'image/png',
+        quality: 0.92,
+        margin: 1
+      });
+
+      const shop = new Shop({
+        ...shopData,
+        paymentQR: {
+          qrCode: qrCodeImage,
+          qrData: qrData,
+          qrId: qrId
+        }
+      });
+
+      await shop.save();
+
+      // Update QR data with actual shop ID
+      const updatedQrData = JSON.stringify({
+        shopId: shop._id,
+        shopName: shop.shopName,
+        qrId: qrId,
+        type: 'shop_payment',
+        adminPaymentInfo: process.env.ADMIN_PAYMENT_INFO || 'admin@payment.com'
+      });
+
+      shop.paymentQR.qrData = updatedQrData;
+      const updatedQrCode = await QRCode.toDataURL(updatedQrData, {
+        errorCorrectionLevel: 'M',
+        type: 'image/png',
+        quality: 0.92,
+        margin: 1
+      });
+      shop.paymentQR.qrCode = updatedQrCode;
+      await shop.save();
+
+      shops.push(shop);
+    }
+
+    // Create sample purchases
+    console.log('💰 Creating sample purchases...');
+    const samplePurchases = [
+      {
+        shop: shops[0]._id,
+        customer: testUser._id,
+        purchaseAmount: 150,
+        products: [{ product: products[0]._id, quantity: 1, price: 150 }],
+        paymentMethod: 'qr',
+        customerInfo: { name: testUser.name, phone: testUser.phone }
+      },
+      {
+        shop: shops[1]._id,
+        customer: null, // Anonymous purchase
+        purchaseAmount: 799,
+        products: [{ product: products[1]._id, quantity: 1, price: 799 }],
+        paymentMethod: 'qr',
+        customerInfo: { name: 'Anonymous Customer', phone: '9999999998' }
+      },
+      {
+        shop: shops[0]._id,
+        customer: testUser._id,
+        purchaseAmount: 270,
+        products: [
+          { product: products[3]._id, quantity: 2, price: 120 },
+          { product: products[4]._id, quantity: 1, price: 450 }
+        ],
+        paymentMethod: 'qr'
+      }
+    ];
+
+    for (const purchaseData of samplePurchases) {
+      const purchase = new Purchase(purchaseData);
+      await purchase.save();
+
+      // Update shop revenue
+      const shop = await Shop.findById(purchaseData.shop);
+      await shop.addPurchase(purchaseData.purchaseAmount);
+    }
     console.log('✅ Seed data created successfully!');
     console.log('\n📋 Test Accounts:');
     console.log(`Admin: Phone: 9999999999, Password: ${process.env.ADMIN_PASSWORD || 'admin123'}`);
     console.log(`User: Phone: 9876543210, Password: password123`);
     console.log(`Shop Owner: Phone: 9876543211, Password: password123`);
     console.log(`Electrician: Phone: 9876543212, Password: password123`);
-    console.log(`\n📊 Created ${categories.length} categories and ${products.length} products`);
+    console.log(`\n📊 Created ${categories.length} categories, ${products.length} products, ${shops.length} shops, and ${samplePurchases.length} sample purchases`);
 
     process.exit(0);
   } catch (error) {
