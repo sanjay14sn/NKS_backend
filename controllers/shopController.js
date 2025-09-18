@@ -3,16 +3,22 @@ const { v4: uuidv4 } = require('uuid');
 const Shop = require('../models/Shop');
 const User = require('../models/User');
 const Purchase = require('../models/Purchase');
+const Transaction = require('../models/Transaction');
 
 // Generate QR code for shop
 const generateShopQR = async (shopData) => {
   const qrId = uuidv4();
+  const shopCode = `SHOP_${Date.now()}_${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+  
   const qrData = JSON.stringify({
     shopId: shopData._id || 'temp',
     shopName: shopData.shopName,
+    shopCode: shopCode,
     qrId: qrId,
-    type: 'shop_payment',
-    adminPaymentInfo: process.env.ADMIN_PAYMENT_INFO || 'admin@payment.com'
+    type: 'shop_payment_demo',
+    demoAmount: shopData.demoTransactionAmount || 30,
+    gstNumber: shopData.gstNumber,
+    mobileNumber: shopData.mobileNumber
   });
 
   try {
@@ -30,7 +36,8 @@ const generateShopQR = async (shopData) => {
     return {
       qrCode: qrCodeImage,
       qrData: qrData,
-      qrId: qrId
+      qrId: qrId,
+      shopCode: shopCode
     };
   } catch (error) {
     throw new Error('Failed to generate QR code');
@@ -40,7 +47,16 @@ const generateShopQR = async (shopData) => {
 // Create shop (Admin only)
 const createShop = async (req, res) => {
   try {
-    const { shopName, ownerName, contactInfo, address, assignOwner } = req.body;
+    const { 
+      shopName, 
+      gstNumber, 
+      mobileNumber, 
+      ownerName, 
+      contactInfo, 
+      address, 
+      assignOwner,
+      demoTransactionAmount 
+    } = req.body;
 
     // Check if shop owner exists (if provided)
     let shopOwner = null;
@@ -53,15 +69,38 @@ const createShop = async (req, res) => {
       }
     }
 
+    // Check for duplicate GST number
+    const existingShopByGST = await Shop.findOne({ gstNumber });
+    if (existingShopByGST) {
+      return res.status(400).json({ 
+        error: 'Shop with this GST number already exists' 
+      });
+    }
+
+    // Check for duplicate mobile number
+    const existingShopByMobile = await Shop.findOne({ mobileNumber });
+    if (existingShopByMobile) {
+      return res.status(400).json({ 
+        error: 'Shop with this mobile number already exists' 
+      });
+    }
     // Create shop data for QR generation
-    const tempShopData = { shopName };
+    const tempShopData = { 
+      shopName, 
+      gstNumber, 
+      mobileNumber, 
+      demoTransactionAmount: demoTransactionAmount || 30 
+    };
     const qrData = await generateShopQR(tempShopData);
 
     const shop = new Shop({
       shopName,
+      gstNumber,
+      mobileNumber,
       ownerName,
       contactInfo,
       address,
+      demoTransactionAmount: demoTransactionAmount || 30,
       paymentQR: qrData,
       shopOwner: shopOwner ? shopOwner._id : null,
       createdBy: req.user.id
@@ -73,9 +112,12 @@ const createShop = async (req, res) => {
     const updatedQrData = JSON.stringify({
       shopId: shop._id,
       shopName: shop.shopName,
+      shopCode: qrData.shopCode,
       qrId: qrData.qrId,
-      type: 'shop_payment',
-      adminPaymentInfo: process.env.ADMIN_PAYMENT_INFO || 'admin@payment.com'
+      type: 'shop_payment_demo',
+      demoAmount: shop.demoTransactionAmount,
+      gstNumber: shop.gstNumber,
+      mobileNumber: shop.mobileNumber
     });
 
     shop.paymentQR.qrData = updatedQrData;
@@ -168,13 +210,48 @@ const getShop = async (req, res) => {
 // Update shop (Admin only)
 const updateShop = async (req, res) => {
   try {
-    const { shopName, ownerName, contactInfo, address, isActive, assignOwner } = req.body;
+    const { 
+      shopName, 
+      gstNumber, 
+      mobileNumber, 
+      ownerName, 
+      contactInfo, 
+      address, 
+      isActive, 
+      assignOwner,
+      demoTransactionAmount 
+    } = req.body;
 
     const shop = await Shop.findById(req.params.id);
     if (!shop) {
       return res.status(404).json({ error: 'Shop not found' });
     }
 
+    // Check for duplicate GST number (excluding current shop)
+    if (gstNumber && gstNumber !== shop.gstNumber) {
+      const existingShopByGST = await Shop.findOne({ 
+        gstNumber, 
+        _id: { $ne: shop._id } 
+      });
+      if (existingShopByGST) {
+        return res.status(400).json({ 
+          error: 'Shop with this GST number already exists' 
+        });
+      }
+    }
+
+    // Check for duplicate mobile number (excluding current shop)
+    if (mobileNumber && mobileNumber !== shop.mobileNumber) {
+      const existingShopByMobile = await Shop.findOne({ 
+        mobileNumber, 
+        _id: { $ne: shop._id } 
+      });
+      if (existingShopByMobile) {
+        return res.status(400).json({ 
+          error: 'Shop with this mobile number already exists' 
+        });
+      }
+    }
     // Check if new shop owner exists (if provided)
     let shopOwner = null;
     if (assignOwner) {
@@ -186,18 +263,27 @@ const updateShop = async (req, res) => {
       }
     }
 
+    // Track if QR regeneration is needed
+    const needsQRRegeneration = (
+      (shopName && shopName !== shop.shopName) ||
+      (gstNumber && gstNumber !== shop.gstNumber) ||
+      (mobileNumber && mobileNumber !== shop.mobileNumber) ||
+      (demoTransactionAmount && demoTransactionAmount !== shop.demoTransactionAmount)
+    );
     // Update shop fields
     if (shopName) shop.shopName = shopName;
+    if (gstNumber) shop.gstNumber = gstNumber;
+    if (mobileNumber) shop.mobileNumber = mobileNumber;
     if (ownerName !== undefined) shop.ownerName = ownerName;
     if (contactInfo) shop.contactInfo = { ...shop.contactInfo, ...contactInfo };
     if (address) shop.address = { ...shop.address, ...address };
     if (typeof isActive !== 'undefined') shop.isActive = isActive;
     if (assignOwner !== undefined) shop.shopOwner = shopOwner ? shopOwner._id : null;
+    if (demoTransactionAmount !== undefined) shop.demoTransactionAmount = demoTransactionAmount;
 
-    // Regenerate QR if shop name changed
-    if (shopName && shopName !== shop.shopName) {
-      const qrData = await generateShopQR(shop);
-      shop.paymentQR = qrData;
+    // Regenerate QR if critical details changed
+    if (needsQRRegeneration) {
+      await shop.regenerateQR();
     }
 
     await shop.save();
@@ -248,10 +334,14 @@ const getShopByQR = async (req, res) => {
       shop: {
         id: shop._id,
         shopName: shop.shopName,
+        gstNumber: shop.gstNumber,
+        mobileNumber: shop.mobileNumber,
         ownerName: shop.ownerName,
         contactInfo: shop.contactInfo,
         address: shop.address,
-        qrId: shop.paymentQR.qrId
+        qrId: shop.paymentQR.qrId,
+        shopCode: shop.paymentQR.shopCode,
+        demoTransactionAmount: shop.demoTransactionAmount
       }
     });
   } catch (error) {
@@ -260,6 +350,41 @@ const getShopByQR = async (req, res) => {
   }
 };
 
+// Get shop by shop code (alternative QR lookup)
+const getShopByCode = async (req, res) => {
+  try {
+    const { shopCode } = req.params;
+
+    const shop = await Shop.findOne({ 'paymentQR.shopCode': shopCode })
+      .populate('shopOwner', 'name phone');
+
+    if (!shop) {
+      return res.status(404).json({ error: 'Shop not found' });
+    }
+
+    if (!shop.isActive) {
+      return res.status(400).json({ error: 'Shop is not active' });
+    }
+
+    res.json({
+      shop: {
+        id: shop._id,
+        shopName: shop.shopName,
+        gstNumber: shop.gstNumber,
+        mobileNumber: shop.mobileNumber,
+        ownerName: shop.ownerName,
+        contactInfo: shop.contactInfo,
+        address: shop.address,
+        qrId: shop.paymentQR.qrId,
+        shopCode: shop.paymentQR.shopCode,
+        demoTransactionAmount: shop.demoTransactionAmount
+      }
+    });
+  } catch (error) {
+    console.error('Get shop by code error:', error);
+    res.status(500).json({ error: 'Failed to fetch shop' });
+  }
+};
 // Get shop dashboard (for shop owners)
 const getShopDashboard = async (req, res) => {
   try {
@@ -278,23 +403,39 @@ const getShopDashboard = async (req, res) => {
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    // Get recent purchases
+    // Get recent transactions (demo QR scans)
+    const recentTransactions = await Transaction.find({ shop: shopId })
+      .sort({ createdAt: -1 })
+      .limit(10);
+
+    // Get recent purchases (if any)
     const recentPurchases = await Purchase.find({ shop: shopId })
       .populate('customer', 'name phone')
       .populate('products.product', 'title price')
       .sort({ createdAt: -1 })
-      .limit(10);
+      .limit(5);
 
-    // Get purchase statistics
+    // Get transaction statistics
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
+    const todayTransactions = await Transaction.aggregate([
+      { $match: { shop: shop._id, createdAt: { $gte: today } } },
+      { $group: { _id: null, total: { $sum: '$transactionAmount' }, count: { $sum: 1 } } }
+    ]);
+
     const todayPurchases = await Purchase.aggregate([
       { $match: { shop: shop._id, createdAt: { $gte: today } } },
       { $group: { _id: null, total: { $sum: '$purchaseAmount' }, count: { $sum: 1 } } }
     ]);
 
     const thisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    
+    const monthlyTransactions = await Transaction.aggregate([
+      { $match: { shop: shop._id, createdAt: { $gte: thisMonth } } },
+      { $group: { _id: null, total: { $sum: '$transactionAmount' }, count: { $sum: 1 } } }
+    ]);
+    
     const monthlyPurchases = await Purchase.aggregate([
       { $match: { shop: shop._id, createdAt: { $gte: thisMonth } } },
       { $group: { _id: null, total: { $sum: '$purchaseAmount' }, count: { $sum: 1 } } }
@@ -302,12 +443,17 @@ const getShopDashboard = async (req, res) => {
 
     res.json({
       shop,
+      recentTransactions,
       recentPurchases,
       statistics: {
         totalRevenue: shop.totalRevenue,
         totalPurchases: shop.totalPurchases,
+        todayTransactionRevenue: todayTransactions[0]?.total || 0,
+        todayTransactionCount: todayTransactions[0]?.count || 0,
         todayRevenue: todayPurchases[0]?.total || 0,
         todayPurchases: todayPurchases[0]?.count || 0,
+        monthlyTransactionRevenue: monthlyTransactions[0]?.total || 0,
+        monthlyTransactionCount: monthlyTransactions[0]?.count || 0,
         monthlyRevenue: monthlyPurchases[0]?.total || 0,
         monthlyPurchases: monthlyPurchases[0]?.count || 0
       }
@@ -318,6 +464,26 @@ const getShopDashboard = async (req, res) => {
   }
 };
 
+// Regenerate QR code for shop (Admin only)
+const regenerateShopQR = async (req, res) => {
+  try {
+    const shop = await Shop.findById(req.params.id);
+    if (!shop) {
+      return res.status(404).json({ error: 'Shop not found' });
+    }
+
+    await shop.regenerateQR();
+    await shop.populate('shopOwner', 'name phone email');
+
+    res.json({
+      message: 'QR code regenerated successfully. Old QR code is now invalid.',
+      shop
+    });
+  } catch (error) {
+    console.error('Regenerate QR error:', error);
+    res.status(500).json({ error: 'Failed to regenerate QR code' });
+  }
+};
 // Get shops for current user (shop owner)
 const getMyShops = async (req, res) => {
   try {
@@ -338,6 +504,8 @@ module.exports = {
   updateShop,
   deleteShop,
   getShopByQR,
+  getShopByCode,
   getShopDashboard,
-  getMyShops
+  getMyShops,
+  regenerateShopQR
 };

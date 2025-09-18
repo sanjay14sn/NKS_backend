@@ -160,6 +160,12 @@ const validateShop = [
     .trim()
     .isLength({ min: 2, max: 200 })
     .withMessage('Shop name must be between 2 and 200 characters'),
+  body('gstNumber')
+    .matches(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/)
+    .withMessage('Please enter a valid GST number'),
+  body('mobileNumber')
+    .matches(/^[0-9]{10}$/)
+    .withMessage('Please enter a valid 10-digit mobile number'),
   body('ownerName')
     .optional()
     .trim()
@@ -181,6 +187,10 @@ const validateShop = [
     .optional()
     .isMongoId()
     .withMessage('Invalid owner ID'),
+  body('demoTransactionAmount')
+    .optional()
+    .isFloat({ min: 1 })
+    .withMessage('Demo transaction amount must be at least ₹1'),
   handleValidationErrors
 ];
 
@@ -209,6 +219,30 @@ const validatePurchase = [
     .isIn(['qr', 'cash', 'card', 'online'])
     .withMessage('Invalid payment method'),
   handleValidationErrors
+// Transaction validation
+const validateTransaction = [
+  body('shopId')
+    .optional()
+    .isMongoId()
+    .withMessage('Invalid shop ID'),
+  body('shopCode')
+    .optional()
+    .isLength({ min: 1 })
+    .withMessage('Shop code cannot be empty'),
+  body('paymentMethod')
+    .optional()
+    .isIn(['googlepay', 'phonepe', 'paytm', 'upi', 'demo'])
+    .withMessage('Invalid payment method'),
+  body('customerInfo.phone')
+    .optional()
+    .isMobilePhone('en-IN')
+    .withMessage('Please enter a valid phone number'),
+  body('customerInfo.upiId')
+    .optional()
+    .matches(/^[\w.-]+@[\w.-]+$/)
+    .withMessage('Please enter a valid UPI ID'),
+  handleValidationErrors
+];
 ];
 // Parameter validation
 const validateObjectId = [
@@ -242,6 +276,7 @@ module.exports = {
   validateOrder,
   validateShop,
   validatePurchase,
+  validateTransaction,
   validateObjectId,
   validatePagination,
   handleValidationErrors

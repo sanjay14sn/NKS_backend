@@ -8,6 +8,7 @@ const Category = require('../models/Category');
 const Product = require('../models/Product');
 const Shop = require('../models/Shop');
 const Purchase = require('../models/Purchase');
+const Transaction = require('../models/Transaction');
 const QRCode = require('qrcode');
 const { v4: uuidv4 } = require('uuid');
 
@@ -22,6 +23,7 @@ const seedData = async () => {
     await Product.deleteMany({});
     await Shop.deleteMany({});
     await Purchase.deleteMany({});
+    await Transaction.deleteMany({});
 
     // Create admin user
     console.log('👤 Creating admin user...');
@@ -211,34 +213,64 @@ const seedData = async () => {
     console.log('🏪 Creating sample shops...');
     const shops = [];
     
-    for (let i = 1; i <= 3; i++) {
+    const shopData = [
+      {
+        shopName: 'Electronics Paradise',
+        gstNumber: '27AAAAA0000A1Z5',
+        mobileNumber: '9876543201',
+        ownerName: shopOwner.name,
+        shopOwner: shopOwner._id,
+        demoTransactionAmount: 30
+      },
+      {
+        shopName: 'Electrical Solutions Hub',
+        gstNumber: '27BBBBB0000A1Z5',
+        mobileNumber: '9876543202',
+        ownerName: electrician.name,
+        shopOwner: electrician._id,
+        demoTransactionAmount: 50
+      },
+      {
+        shopName: 'Tech Components Store',
+        gstNumber: '27CCCCC0000A1Z5',
+        mobileNumber: '9876543203',
+        ownerName: null,
+        shopOwner: null,
+        demoTransactionAmount: 25
+      }
+    ];
+
+    for (let i = 0; i < shopData.length; i++) {
       const qrId = uuidv4();
-      const shopData = {
-        shopName: `Electronics Shop ${i}`,
-        ownerName: i === 1 ? shopOwner.name : (i === 2 ? electrician.name : null),
+      const shopCode = `SHOP_${Date.now()}_${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+      
+      const currentShopData = {
+        ...shopData[i],
         contactInfo: {
-          phone: `987654321${i}`,
-          email: `shop${i}@example.com`
+          phone: shopData[i].mobileNumber,
+          email: `shop${i + 1}@example.com`
         },
         address: {
-          street: `${i}23 Market Street`,
+          street: `${i + 1}23 Market Street`,
           city: 'Mumbai',
           state: 'Maharashtra',
           zipCode: '400001'
         },
-        shopOwner: i === 1 ? shopOwner._id : (i === 2 ? electrician._id : null),
         createdBy: admin._id
       };
 
-      const qrData = JSON.stringify({
+      const qrDataContent = JSON.stringify({
         shopId: 'temp',
-        shopName: shopData.shopName,
+        shopName: currentShopData.shopName,
+        shopCode: shopCode,
         qrId: qrId,
-        type: 'shop_payment',
-        adminPaymentInfo: process.env.ADMIN_PAYMENT_INFO || 'admin@payment.com'
+        type: 'shop_payment_demo',
+        demoAmount: currentShopData.demoTransactionAmount,
+        gstNumber: currentShopData.gstNumber,
+        mobileNumber: currentShopData.mobileNumber
       });
 
-      const qrCodeImage = await QRCode.toDataURL(qrData, {
+      const qrCodeImage = await QRCode.toDataURL(qrDataContent, {
         errorCorrectionLevel: 'M',
         type: 'image/png',
         quality: 0.92,
@@ -246,11 +278,12 @@ const seedData = async () => {
       });
 
       const shop = new Shop({
-        ...shopData,
+        ...currentShopData,
         paymentQR: {
           qrCode: qrCodeImage,
-          qrData: qrData,
-          qrId: qrId
+          qrData: qrDataContent,
+          qrId: qrId,
+          shopCode: shopCode
         }
       });
 
@@ -260,9 +293,12 @@ const seedData = async () => {
       const updatedQrData = JSON.stringify({
         shopId: shop._id,
         shopName: shop.shopName,
+        shopCode: shopCode,
         qrId: qrId,
-        type: 'shop_payment',
-        adminPaymentInfo: process.env.ADMIN_PAYMENT_INFO || 'admin@payment.com'
+        type: 'shop_payment_demo',
+        demoAmount: shop.demoTransactionAmount,
+        gstNumber: shop.gstNumber,
+        mobileNumber: shop.mobileNumber
       });
 
       shop.paymentQR.qrData = updatedQrData;
@@ -278,6 +314,59 @@ const seedData = async () => {
       shops.push(shop);
     }
 
+    // Create sample demo transactions
+    console.log('💳 Creating sample demo transactions...');
+    const sampleTransactions = [
+      {
+        shop: shops[0]._id,
+        shopCode: shops[0].paymentQR.shopCode,
+        transactionAmount: 30,
+        paymentMethod: 'googlepay',
+        customerInfo: { name: 'Demo Customer 1', phone: '9876543210', upiId: 'customer1@paytm' }
+      },
+      {
+        shop: shops[1]._id,
+        shopCode: shops[1].paymentQR.shopCode,
+        transactionAmount: 50,
+        paymentMethod: 'phonepe',
+        customerInfo: { name: 'Demo Customer 2', phone: '9876543211', upiId: 'customer2@phonepe' }
+      },
+      {
+        shop: shops[0]._id,
+        shopCode: shops[0].paymentQR.shopCode,
+        transactionAmount: 30,
+        paymentMethod: 'paytm',
+        customerInfo: { name: 'Demo Customer 3', upiId: 'customer3@paytm' }
+      },
+      {
+        shop: shops[2]._id,
+        shopCode: shops[2].paymentQR.shopCode,
+        transactionAmount: 25,
+        paymentMethod: 'demo',
+        customerInfo: { name: 'Anonymous Customer' }
+      }
+    ];
+
+    for (const transactionData of sampleTransactions) {
+      const transaction = new Transaction({
+        ...transactionData,
+        transactionType: 'demo_qr_scan',
+        status: 'simulated',
+        metadata: {
+          scannedAt: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000), // Random time in last 7 days
+          userAgent: 'Demo/Seed Data',
+          ipAddress: '127.0.0.1',
+          qrId: shops.find(s => s._id.equals(transactionData.shop)).paymentQR.qrId
+        },
+        notes: `Demo QR scan transaction for ₹${transactionData.transactionAmount}`
+      });
+      
+      await transaction.save();
+      
+      // Update shop revenue
+      const shop = await Shop.findById(transactionData.shop);
+      await shop.addPurchase(transactionData.transactionAmount);
+    }
     // Create sample purchases
     console.log('💰 Creating sample purchases...');
     const samplePurchases = [
@@ -323,7 +412,7 @@ const seedData = async () => {
     console.log(`User: Phone: 9876543210, Password: password123`);
     console.log(`Shop Owner: Phone: 9876543211, Password: password123`);
     console.log(`Electrician: Phone: 9876543212, Password: password123`);
-    console.log(`\n📊 Created ${categories.length} categories, ${products.length} products, ${shops.length} shops, and ${samplePurchases.length} sample purchases`);
+   console.log(`\n📊 Created ${categories.length} categories, ${products.length} products, ${shops.length} shops, ${sampleTransactions.length} demo transactions, and ${samplePurchases.length} sample purchases`);
 
     process.exit(0);
   } catch (error) {
