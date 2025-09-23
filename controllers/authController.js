@@ -175,6 +175,107 @@ const getAllUsers = async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch users' });
   }
 };
+// ===================== ADD ADDRESS =====================
+const addAddress = async (req, res) => {
+  try {
+    const { street, city, state, postalCode, country, isDefault } = req.body;
+
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    if (isDefault) {
+      // Make all other addresses non-default
+      user.addresses.forEach(addr => addr.isDefault = false);
+    }
+
+    user.addresses.push({ street, city, state, postalCode, country, isDefault });
+    await user.save();
+
+    res.status(201).json({
+      message: 'Address added successfully',
+      addresses: user.addresses
+    });
+  } catch (error) {
+    console.error('Add address error:', error);
+    res.status(500).json({ error: 'Failed to add address' });
+  }
+};
+
+// ===================== UPDATE ADDRESS =====================
+const updateAddress = async (req, res) => {
+  try {
+    const { addressId } = req.params;
+    const { street, city, state, postalCode, country, isDefault } = req.body;
+
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const address = user.addresses.id(addressId);
+    if (!address) return res.status(404).json({ error: 'Address not found' });
+
+    if (isDefault) {
+      user.addresses.forEach(addr => addr.isDefault = false);
+    }
+
+    address.street = street || address.street;
+    address.city = city || address.city;
+    address.state = state || address.state;
+    address.postalCode = postalCode || address.postalCode;
+    address.country = country || address.country;
+    address.isDefault = isDefault ?? address.isDefault;
+
+    await user.save();
+
+    res.json({
+      message: 'Address updated successfully',
+      addresses: user.addresses
+    });
+  } catch (error) {
+    console.error('Update address error:', error);
+    res.status(500).json({ error: 'Failed to update address' });
+  }
+};
+
+// ===================== DELETE ADDRESS =====================
+const deleteAddress = async (req, res) => {
+  try {
+    const { addressId } = req.params;
+
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const address = user.addresses.id(addressId);
+    if (!address) return res.status(404).json({ error: 'Address not found' });
+
+    address.deleteOne(); // remove from array
+    await user.save();
+
+    res.json({
+      message: 'Address deleted successfully',
+      addresses: user.addresses
+    });
+  } catch (error) {
+    console.error('Delete address error:', error);
+    res.status(500).json({ error: 'Failed to delete address' });
+  }
+};
+
+// ===================== GET ALL ADDRESSES =====================
+const getAddresses = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('addresses');
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    res.json({
+      message: 'Addresses fetched successfully',
+      addresses: user.addresses
+    });
+  } catch (error) {
+    console.error('Get addresses error:', error);
+    res.status(500).json({ error: 'Failed to fetch addresses' });
+  }
+};
+
 
 module.exports = {
   signupUser,
@@ -182,4 +283,8 @@ module.exports = {
   login,
   getProfile,
   getAllUsers,
+  updateAddress,
+  addAddress,
+  deleteAddress,
+  getAddresses
 };

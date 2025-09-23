@@ -8,6 +8,10 @@ const {
   login,
   getProfile,
   getAllUsers,
+  addAddress,
+  updateAddress,
+  deleteAddress,
+  getAddresses
 } = require('../controllers/authController');
 
 // Middlewares
@@ -52,5 +56,37 @@ router.post('/login', validateLogin, login);
  * @access  Private
  */
 router.get('/profile', authenticate, getProfile);
+
+/**
+ * ==================== ADDRESS ROUTES ====================
+ */
+
+/**
+ * @route   POST /api/auth/address
+ * @desc    Add a new address
+ * @access  Private
+ */
+router.post('/address', authenticate, addAddress);
+
+/**
+ * @route   GET /api/auth/address
+ * @desc    Get all addresses of logged-in user
+ * @access  Private
+ */
+router.get('/address', authenticate, getAddresses);
+
+/**
+ * @route   PUT /api/auth/address/:addressId
+ * @desc    Update address by ID
+ * @access  Private
+ */
+router.put('/address/:addressId', authenticate, updateAddress);
+
+/**
+ * @route   DELETE /api/auth/address/:addressId
+ * @desc    Delete address by ID
+ * @access  Private
+ */
+router.delete('/address/:addressId', authenticate, deleteAddress);
 
 module.exports = router;

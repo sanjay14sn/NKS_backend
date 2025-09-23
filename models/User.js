@@ -1,6 +1,17 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
+// ===================== ADDRESS SCHEMA =====================
+const addressSchema = new mongoose.Schema({
+  street: { type: String, required: true, trim: true },
+  city: { type: String, required: true, trim: true },
+  state: { type: String, required: true, trim: true },
+  postalCode: { type: String, required: true, trim: true },
+  country: { type: String, required: true, trim: true },
+  isDefault: { type: Boolean, default: false },
+}, { timestamps: true });
+
+// ===================== USER SCHEMA =====================
 const userSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -67,12 +78,14 @@ const userSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
-  }
+  },
+  // ✅ Add addresses array
+  addresses: [addressSchema]
 }, {
   timestamps: true
 });
 
-// Pre-save middleware to hash password
+// ===================== PASSWORD HASHING =====================
 userSchema.pre('save', async function(next) {
   if (!this.isModified('passwordHash')) {
     return next();
@@ -87,12 +100,12 @@ userSchema.pre('save', async function(next) {
   }
 });
 
-// Method to compare password
+// ===================== PASSWORD COMPARE =====================
 userSchema.methods.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.passwordHash);
 };
 
-// Remove sensitive fields from JSON output
+// ===================== HIDE SENSITIVE FIELDS =====================
 userSchema.methods.toJSON = function() {
   const user = this.toObject();
   delete user.passwordHash;
