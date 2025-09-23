@@ -1,13 +1,20 @@
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
 
 // ===================== ADDRESS SCHEMA =====================
 const addressSchema = new mongoose.Schema({
+  nickname: { 
+    type: String, 
+    required: true, 
+    trim: true,
+    maxlength: [50, 'Nickname cannot exceed 50 characters'] // e.g. Home, Office, Mom's house
+  },
   street: { type: String, required: true, trim: true },
   city: { type: String, required: true, trim: true },
   state: { type: String, required: true, trim: true },
   postalCode: { type: String, required: true, trim: true },
   country: { type: String, required: true, trim: true },
+  latitude: { type: Number, required: true },   // ✅ lat
+  longitude: { type: Number, required: true },  // ✅ lon
   isDefault: { type: Boolean, default: false },
 }, { timestamps: true });
 
@@ -22,10 +29,9 @@ const userSchema = new mongoose.Schema({
   phone: {
     type: String,
     unique: true,
-    sparse: true, // ✅ allows null for admin (no phone required)
+    sparse: true,
     validate: {
       validator: function(v) {
-        // only validate if phone is provided
         return !v || /^[0-9]{10}$/.test(v);
       },
       message: 'Please enter a valid 10-digit phone number'
@@ -34,12 +40,11 @@ const userSchema = new mongoose.Schema({
   email: {
     type: String,
     unique: true,
-    sparse: true, // ✅ allows users without email, but admin will use it
+    sparse: true,
     lowercase: true,
     trim: true,
     validate: {
       validator: function(v) {
-        // only validate if email is provided
         return !v || /^\S+@\S+\.\S+$/.test(v);
       },
       message: 'Please enter a valid email address'
@@ -55,15 +60,11 @@ const userSchema = new mongoose.Schema({
     enum: ['user', 'shopowner', 'electrician', 'admin'],
     default: 'user'
   },
-  referral: {
-    type: String,
-    trim: true
-  },
+  referral: { type: String, trim: true },
   favorites: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Product'
   }],
-  // Additional fields for shopowners/electricians
   gstNumber: {
     type: String,
     required: function() {
@@ -71,26 +72,18 @@ const userSchema = new mongoose.Schema({
     },
     match: [/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/, 'Please enter a valid GST number']
   },
-  shopName: {
-    type: String,
-    trim: true
-  },
-  isActive: {
-    type: Boolean,
-    default: true
-  },
-  // ✅ Add addresses array
-  addresses: [addressSchema]
+  shopName: { type: String, trim: true },
+  isActive: { type: Boolean, default: true },
+  addresses: [addressSchema] // ✅ array of addresses with nickname + lat/lon
 }, {
   timestamps: true
 });
 
+const bcrypt = require('bcryptjs');
+
 // ===================== PASSWORD HASHING =====================
 userSchema.pre('save', async function(next) {
-  if (!this.isModified('passwordHash')) {
-    return next();
-  }
-  
+  if (!this.isModified('passwordHash')) return next();
   try {
     const salt = await bcrypt.genSalt(12);
     this.passwordHash = await bcrypt.hash(this.passwordHash, salt);

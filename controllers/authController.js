@@ -175,10 +175,11 @@ const getAllUsers = async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch users' });
   }
 };
+
 // ===================== ADD ADDRESS =====================
 const addAddress = async (req, res) => {
   try {
-    const { street, city, state, postalCode, country, isDefault } = req.body;
+    const { nickname, street, city, state, postalCode, country, latitude, longitude, isDefault } = req.body;
 
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
@@ -188,7 +189,18 @@ const addAddress = async (req, res) => {
       user.addresses.forEach(addr => addr.isDefault = false);
     }
 
-    user.addresses.push({ street, city, state, postalCode, country, isDefault });
+    user.addresses.push({
+      nickname,
+      street,
+      city,
+      state,
+      postalCode,
+      country,
+      latitude,
+      longitude,
+      isDefault
+    });
+
     await user.save();
 
     res.status(201).json({
@@ -205,7 +217,7 @@ const addAddress = async (req, res) => {
 const updateAddress = async (req, res) => {
   try {
     const { addressId } = req.params;
-    const { street, city, state, postalCode, country, isDefault } = req.body;
+    const { nickname, street, city, state, postalCode, country, latitude, longitude, isDefault } = req.body;
 
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
@@ -214,14 +226,19 @@ const updateAddress = async (req, res) => {
     if (!address) return res.status(404).json({ error: 'Address not found' });
 
     if (isDefault) {
+      // make all other addresses non-default
       user.addresses.forEach(addr => addr.isDefault = false);
     }
 
+    // update fields if provided
+    address.nickname = nickname || address.nickname;
     address.street = street || address.street;
     address.city = city || address.city;
     address.state = state || address.state;
     address.postalCode = postalCode || address.postalCode;
     address.country = country || address.country;
+    address.latitude = latitude ?? address.latitude;
+    address.longitude = longitude ?? address.longitude;
     address.isDefault = isDefault ?? address.isDefault;
 
     await user.save();
@@ -247,7 +264,7 @@ const deleteAddress = async (req, res) => {
     const address = user.addresses.id(addressId);
     if (!address) return res.status(404).json({ error: 'Address not found' });
 
-    address.deleteOne(); // remove from array
+    address.deleteOne();
     await user.save();
 
     res.json({
@@ -275,7 +292,6 @@ const getAddresses = async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch addresses' });
   }
 };
-
 
 module.exports = {
   signupUser,
