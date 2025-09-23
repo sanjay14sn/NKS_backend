@@ -179,13 +179,15 @@ const getAllUsers = async (req, res) => {
 // ===================== ADD ADDRESS =====================
 const addAddress = async (req, res) => {
   try {
+    console.log('req.user:', req.user);
+    console.log('req.body:', req.body);
+
     const { nickname, street, city, state, postalCode, country, latitude, longitude, isDefault } = req.body;
 
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user?.id); // optional chaining
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     if (isDefault) {
-      // Make all other addresses non-default
       user.addresses.forEach(addr => addr.isDefault = false);
     }
 
@@ -201,15 +203,16 @@ const addAddress = async (req, res) => {
       isDefault
     });
 
-    await user.save();
+    const savedUser = await user.save();
+    console.log('Saved user:', savedUser);
 
     res.status(201).json({
       message: 'Address added successfully',
-      addresses: user.addresses
+      addresses: savedUser.addresses
     });
   } catch (error) {
-    console.error('Add address error:', error);
-    res.status(500).json({ error: 'Failed to add address' });
+    console.error('Add address error:', error); // log full error
+    res.status(500).json({ error: error.message }); // send detailed message
   }
 };
 
