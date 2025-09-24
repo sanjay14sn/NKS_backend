@@ -170,6 +170,20 @@ curl -X POST http://localhost:5000/api/products/PRODUCT_ID/rate \
 curl -X GET "http://localhost:5000/api/products?search=smart%20bulb&minPrice=100&maxPrice=500&sort=price&page=1&limit=20"
 ```
 
+#### Get Products by Category
+```bash
+GET /api/products/category/:categoryId
+
+curl -X GET "http://localhost:5000/api/products/category/CATEGORY_ID?page=1&limit=10&search=LED&sort=-rating"
+```
+
+#### Global Search Products
+```bash
+GET /api/products/search/global?q=SEARCH_QUERY
+
+curl -X GET "http://localhost:5000/api/products/search/global?q=smart%20bulb&page=1&limit=20&category=CATEGORY_ID&minPrice=100&maxPrice=500"
+```
+
 ## Response Examples
 
 ### Successful Login Response
