@@ -224,19 +224,40 @@ const getOrder = async (req, res) => {
 const updateOrderStatus = async (req, res) => {
   try {
     const { status } = req.body;
-    
-    const order = await Order.findByIdAndUpdate(
-      req.params.id,
-      { status },
-      { new: true, runValidators: true }
-    ).populate('items.product', 'title images')
-     .populate('user', 'name');
+
+    // Validate status explicitly
+    const allowedStatuses = ['placed', 'processing', 'shipped', 'delivered', 'cancelled'];
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({ error: `Invalid status: ${status}` });
+    }
+
+    // Find the order first
+    const order = await Order.findById(req.params.id)
+      .populate('items.product', 'title images')
+      .populate('user', 'name');
 
     if (!order) {
-      return res.status(404).json({
-        error: 'Order not found'
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    // Optional: prevent invalid transitions
+    const invalidTransitions = {
+      delivered: ['placed', 'processing', 'shipped'], // once delivered, can't go back
+      cancelled: ['delivered'] // cannot cancel delivered order
+    };
+
+    if (
+      invalidTransitions[order.status] &&
+      invalidTransitions[order.status].includes(status)
+    ) {
+      return res.status(400).json({
+        error: `Cannot change status from ${order.status} to ${status}`
       });
     }
+
+    // Update and save order
+    order.status = status;
+    await order.save();
 
     // Send notification for status change
     const statusMessages = {
@@ -250,22 +271,25 @@ const updateOrderStatus = async (req, res) => {
     await sendNotification(
       order.user._id,
       'Order Status Updated',
-      statusMessages[status] || `Your order status has been updated to ${status}.`,
+      statusMessages[status],
       'order_status_change',
-      { orderId: order._id, status, orderNumber: order._id.toString().slice(-6) }
+      {
+        orderId: order._id,
+        status,
+        orderNumber: order._id.toString().slice(-6)
+      }
     );
 
-    res.json({
+    return res.status(200).json({
       message: 'Order status updated successfully',
       order
     });
   } catch (error) {
     console.error('Update order status error:', error);
-    res.status(500).json({
-      error: 'Failed to update order status'
-    });
+    return res.status(500).json({ error: 'Failed to update order status' });
   }
 };
+
 
 module.exports = {
   createOrder,
