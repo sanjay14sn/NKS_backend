@@ -1,6 +1,33 @@
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 
+// ===================== NOTIFICATION HELPER =====================
+const sendNotification = async (userId, title, message, type, data = {}) => {
+  try {
+    // TODO: Implement push notification service (FCM, OneSignal, etc.)
+    // For now, we'll just log the notification
+    console.log(`📱 NOTIFICATION: ${title} - ${message} (User: ${userId}, Type: ${type})`);
+    
+    // You can integrate with FCM, OneSignal, or other services here
+    // Example structure for future implementation:
+    /*
+    const notification = {
+      userId,
+      title,
+      message,
+      type,
+      data,
+      timestamp: new Date()
+    };
+    
+    // Send to notification service
+    await notificationService.send(notification);
+    */
+  } catch (error) {
+    console.error('Notification send error:', error);
+  }
+};
+
 // Create order
 // Create order
 const createOrder = async (req, res) => {
@@ -66,6 +93,15 @@ const createOrder = async (req, res) => {
 
     await order.save();
     await order.populate('items.product', 'title images');
+
+    // Send notification for order placed
+    await sendNotification(
+      req.user.id,
+      'Order Placed Successfully! 🎉',
+      `Your order #${order._id.toString().slice(-6)} has been placed successfully.`,
+      'order_placed',
+      { orderId: order._id, total: order.total }
+    );
 
     res.status(201).json({
       message: 'Order placed successfully',
@@ -193,13 +229,31 @@ const updateOrderStatus = async (req, res) => {
       req.params.id,
       { status },
       { new: true, runValidators: true }
-    ).populate('items.product', 'title images');
+    ).populate('items.product', 'title images')
+     .populate('user', 'name');
 
     if (!order) {
       return res.status(404).json({
         error: 'Order not found'
       });
     }
+
+    // Send notification for status change
+    const statusMessages = {
+      placed: 'Your order has been placed successfully! 📦',
+      processing: 'Your order is now being processed! ⚙️',
+      shipped: 'Your order has been shipped! 🚚',
+      delivered: 'Your order has been delivered! ✅',
+      cancelled: 'Your order has been cancelled. ❌'
+    };
+
+    await sendNotification(
+      order.user._id,
+      'Order Status Updated',
+      statusMessages[status] || `Your order status has been updated to ${status}.`,
+      'order_status_change',
+      { orderId: order._id, status, orderNumber: order._id.toString().slice(-6) }
+    );
 
     res.json({
       message: 'Order status updated successfully',

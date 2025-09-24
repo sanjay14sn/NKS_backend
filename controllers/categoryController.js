@@ -1,5 +1,37 @@
 const Category = require("../models/Category");
 const { cloudinary } = require("../config/cloudinary");
+const User = require("../models/User");
+
+// ===================== NOTIFICATION HELPER =====================
+const sendNotificationToAllUsers = async (title, message, type, data = {}) => {
+  try {
+    // TODO: Implement push notification service (FCM, OneSignal, etc.)
+    // For now, we'll just log the notification
+    console.log(`📱 BROADCAST NOTIFICATION: ${title} - ${message} (Type: ${type})`);
+    
+    // You can integrate with FCM, OneSignal, or other services here
+    // Example structure for future implementation:
+    /*
+    const users = await User.find({ isActive: true }).select('_id');
+    
+    for (const user of users) {
+      const notification = {
+        userId: user._id,
+        title,
+        message,
+        type,
+        data,
+        timestamp: new Date()
+      };
+      
+      // Send to notification service
+      await notificationService.send(notification);
+    }
+    */
+  } catch (error) {
+    console.error('Broadcast notification error:', error);
+  }
+};
 
 // ======================
 // Create Category (Admin only)
@@ -43,6 +75,14 @@ const createCategory = async (req, res) => {
     });
 
     await category.save();
+
+    // Send notification to all users about new category
+    await sendNotificationToAllUsers(
+      'New Category Added! 🆕',
+      `Check out our new category: ${category.title}`,
+      'new_category',
+      { categoryId: category._id, categoryTitle: category.title, categorySlug: category.slug }
+    );
 
     res.status(201).json({
       message: "Category created successfully",

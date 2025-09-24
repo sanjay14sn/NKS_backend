@@ -126,23 +126,41 @@ GET /api/auth/profile
 curl -X GET http://localhost:5000/api/auth/profile \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
-#### 5.Get All Users (Admin only, requires token)
+
+#### 5. Upload Profile Picture
+```bash
+POST /api/auth/profile/picture
+
+curl -X PUT http://localhost:5000/api/auth/profile/picture \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -F "profilePicture=@/path/to/profile-image.jpg"
+```
+
+#### 6. Delete Profile Picture
+```bash
+DELETE /api/auth/profile/picture
+
+curl -X DELETE http://localhost:5000/api/auth/profile/picture \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+#### 7. Get All Users (Admin only, requires token)
 
 GET /api/auth/users
-curl -X GET http://localhost:5006/api/auth/users \
+curl -X GET http://localhost:5000/api/auth/users \
   -H "Authorization: Bearer YOUR_ADMIN_JWT_TOKEN"
 
 
 ### Categories
 
-#### 5. Get All Categories
+#### 8. Get All Categories
 ```bash
 GET /api/categories
 
 curl -X GET http://localhost:5000/api/categories
 ```
 
-#### 6. Create Category (Admin only)
+#### 9. Create Category (Admin only)
 ```bash
 POST /api/categories
 
@@ -157,21 +175,35 @@ curl -X POST http://localhost:5000/api/categories \
 
 ### Products
 
-#### 7. Get All Products
+#### 10. Get All Products
 ```bash
 GET /api/products?page=1&limit=10&category=CATEGORY_ID&search=LED&minPrice=100&maxPrice=1000
 
 curl -X GET "http://localhost:5000/api/products?page=1&limit=10"
 ```
 
-#### 8. Get Single Product
+#### 11. Get Products by Category
+```bash
+GET /api/products/category/:categoryId
+
+curl -X GET "http://localhost:5000/api/products/category/CATEGORY_ID?page=1&limit=10"
+```
+
+#### 12. Global Search Products
+```bash
+GET /api/products/search/global?q=SEARCH_QUERY
+
+curl -X GET "http://localhost:5000/api/products/search/global?q=LED%20bulb&page=1&limit=20"
+```
+
+#### 13. Get Single Product
 ```bash
 GET /api/products/:id
 
 curl -X GET http://localhost:5000/api/products/PRODUCT_ID
 ```
 
-#### 9. Create Product (Shop Owner/Admin only)
+#### 14. Create Product (Shop Owner/Admin only)
 ```bash
 POST /api/products
 
@@ -187,7 +219,7 @@ curl -X POST http://localhost:5000/api/products \
   -F "images=@/path/to/image2.jpg"
 ```
 
-#### 10. Rate Product
+#### 15. Rate Product
 ```bash
 POST /api/products/:id/rate
 
@@ -201,7 +233,7 @@ curl -X POST http://localhost:5000/api/products/PRODUCT_ID/rate \
 
 ### Orders
 
-#### 11. Place Order
+#### 16. Place Order
 ```bash
 POST /api/orders
 
@@ -226,7 +258,7 @@ curl -X POST http://localhost:5000/api/orders \
   }'
 ```
 
-#### 12. Get User Orders
+#### 17. Get User Orders
 ```bash
 GET /api/orders/my-orders
 
@@ -234,7 +266,7 @@ curl -X GET http://localhost:5000/api/orders/my-orders \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
-#### 13. Get All Orders (Admin only)
+#### 18. Get All Orders (Admin only)
 ```bash
 GET /api/orders
 
@@ -242,7 +274,7 @@ curl -X GET http://localhost:5000/api/orders \
   -H "Authorization: Bearer YOUR_ADMIN_JWT_TOKEN"
 ```
 
-#### 14. Update Order Status (Admin only)
+#### 19. Update Order Status (Admin only)
 ```bash
 PUT /api/orders/:id/status
 
@@ -256,7 +288,7 @@ curl -X PUT http://localhost:5000/api/orders/ORDER_ID/status \
 
 ### Favorites
 
-#### 15. Toggle Favorite
+#### 20. Toggle Favorite
 ```bash
 POST /api/favorites/toggle/:productId
 
@@ -264,7 +296,7 @@ curl -X POST http://localhost:5000/api/favorites/toggle/PRODUCT_ID \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
-#### 16. Get User Favorites
+#### 21. Get User Favorites
 ```bash
 GET /api/favorites
 

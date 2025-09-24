@@ -11,11 +11,14 @@ const {
   addAddress,
   updateAddress,
   deleteAddress,
-  getAddresses
+  getAddresses,
+  uploadProfilePicture,
+  deleteProfilePicture
 } = require('../controllers/authController');
 
 // Middlewares
 const { authenticate, isAdmin } = require('../middleware/auth');
+const { uploadProfilePicture: uploadProfilePic } = require('../config/cloudinary');
 const {
   validateUserSignup,
   validateShopOwnerSignup,
@@ -88,5 +91,23 @@ router.put('/address/:addressId', authenticate, updateAddress);
  * @access  Private
  */
 router.delete('/address/:addressId', authenticate, deleteAddress);
+
+/**
+ * ==================== PROFILE PICTURE ROUTES ====================
+ */
+
+/**
+ * @route   PUT /api/auth/profile/picture
+ * @desc    Upload/Update profile picture
+ * @access  Private
+ */
+router.put('/profile/picture', authenticate, uploadProfilePic.single('profilePicture'), uploadProfilePicture);
+
+/**
+ * @route   DELETE /api/auth/profile/picture
+ * @desc    Delete profile picture
+ * @access  Private
+ */
+router.delete('/profile/picture', authenticate, deleteProfilePicture);
 
 module.exports = router;
