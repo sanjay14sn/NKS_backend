@@ -24,6 +24,11 @@ const statsRoutes = require('./routes/stats');
 const app = express();
 
 // ===========================
+// ✅ Trust Proxy (for Render / reverse proxies)
+// ===========================
+app.set('trust proxy', 1); // trust first proxy (needed for rate-limit & X-Forwarded-For)
+
+// ===========================
 // MongoDB connection & Admin Seed
 // ===========================
 connectDB().then(async () => {
