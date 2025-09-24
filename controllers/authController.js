@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { cloudinary } = require('../config/cloudinary');
 
 // Generate JWT token
 const generateToken = (userId) => {
@@ -150,6 +151,7 @@ const getProfile = async (req, res) => {
         shopName: user.shopName,
         referral: user.referral,
         favorites: user.favorites,
+        profilePicture: user.profilePicture,
         createdAt: user.createdAt,
       },
     });
@@ -296,6 +298,77 @@ const getAddresses = async (req, res) => {
   }
 };
 
+// ===================== UPLOAD PROFILE PICTURE =====================
+const uploadProfilePicture = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No image file provided' });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    // Delete old profile picture from Cloudinary if exists
+    if (user.profilePicture && user.profilePicture.public_id) {
+      try {
+        await cloudinary.uploader.destroy(user.profilePicture.public_id);
+      } catch (error) {
+        console.error('Error deleting old profile picture:', error);
+      }
+    }
+
+    // Update user with new profile picture
+    user.profilePicture = {
+      url: req.file.path,
+      public_id: req.file.filename
+    };
+
+    await user.save();
+
+    res.json({
+      message: 'Profile picture updated successfully',
+      profilePicture: user.profilePicture
+    });
+  } catch (error) {
+    console.error('Upload profile picture error:', error);
+    res.status(500).json({ error: 'Failed to upload profile picture' });
+  }
+};
+
+// ===================== DELETE PROFILE PICTURE =====================
+const deleteProfilePicture = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    if (!user.profilePicture || !user.profilePicture.public_id) {
+      return res.status(400).json({ error: 'No profile picture to delete' });
+    }
+
+    // Delete from Cloudinary
+    try {
+      await cloudinary.uploader.destroy(user.profilePicture.public_id);
+    } catch (error) {
+      console.error('Error deleting profile picture from Cloudinary:', error);
+    }
+
+    // Remove from user document
+    user.profilePicture = {
+      url: null,
+      public_id: null
+    };
+
+    await user.save();
+
+    res.json({
+      message: 'Profile picture deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete profile picture error:', error);
+    res.status(500).json({ error: 'Failed to delete profile picture' });
+  }
+};
+
 module.exports = {
   signupUser,
   signupShopOwner,
@@ -305,5 +378,7 @@ module.exports = {
   updateAddress,
   addAddress,
   deleteAddress,
-  getAddresses
+  getAddresses,
+  uploadProfilePicture,
+  deleteProfilePicture
 };
