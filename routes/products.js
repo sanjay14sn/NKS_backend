@@ -15,11 +15,12 @@ const { authenticate, isAdmin, isShopOwner, isUser } = require('../middleware/au
 const { validateProduct, validateObjectId, validatePagination } = require('../middleware/validation');
 const { uploadProduct } = require('../config/cloudinary');
 
-// Public routes
-router.get('/', validatePagination, getProducts);
-router.get('/:id', validateObjectId, getProduct);
+// ================= PUBLIC ROUTES =================
 
-// Products by Category
+// Get all products (with pagination)
+router.get('/', validatePagination, getProducts);
+
+// Products by Category (⚡ placed before /:id)
 router.get('/category/:categoryId', validateObjectId, async (req, res) => {
   try {
     const { categoryId } = req.params;
@@ -99,7 +100,7 @@ router.get('/filters/trending', async (req, res) => {
   }
 });
 
-// Global Search for Products (Enhanced)
+// Global Search for Products
 router.get('/search/global', async (req, res) => {
   try {
     const {
@@ -160,10 +161,13 @@ router.get('/search/global', async (req, res) => {
   }
 });
 
-// User routes
+// Single Product (⚡ must come AFTER category/search/filters)
+router.get('/:id', validateObjectId, getProduct);
+
+// ================= USER ROUTES =================
 router.post('/:id/rate', authenticate, isUser, validateObjectId, rateProduct);
 
-// Shop owner/Admin routes
+// ================= SHOP OWNER / ADMIN ROUTES =================
 router.post(
   '/',
   authenticate,
@@ -182,7 +186,6 @@ router.put(
   updateProduct
 );
 
-// Admin only routes
 router.delete('/:id', authenticate, isAdmin, validateObjectId, deleteProduct);
 
 module.exports = router;
