@@ -19,6 +19,7 @@ const categoryRoutes = require('./routes/categories');
 const productRoutes = require('./routes/products');
 const orderRoutes = require('./routes/orders');
 const favoriteRoutes = require('./routes/favorites');
+const statsRoutes = require('./routes/stats');
 
 const app = express();
 
@@ -110,6 +111,7 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/favorites', favoriteRoutes);
+app.use('/api/stats', statsRoutes);
 
 // ===========================
 // Health Check
