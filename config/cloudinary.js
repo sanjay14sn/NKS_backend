@@ -38,4 +38,14 @@ const productStorage = new CloudinaryStorage({
 });
 const uploadProduct = multer({ storage: productStorage });
 
-module.exports = { cloudinary, uploadCategory, uploadProduct };
+// Profile pictures storage
+const profileStorage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: "profile-pictures",
+    allowed_formats: ["jpg", "jpeg", "png", "gif"],
+  },
+});
+const uploadProfilePicture = multer({ storage: profileStorage });
+
+module.exports = { cloudinary, uploadCategory, uploadProduct, uploadProfilePicture };
