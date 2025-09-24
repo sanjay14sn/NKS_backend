@@ -74,7 +74,7 @@ const userSchema = new mongoose.Schema({
   },
   shopName: { type: String, trim: true },
   isActive: { type: Boolean, default: true },
-  addresses: [addressSchema] // ✅ array of addresses with nickname + lat/lon
+  addresses: [addressSchema], // ✅ array of addresses with nickname + lat/lon
   profilePicture: {
     url: { type: String, default: null },       // Cloudinary URL
     public_id: { type: String, default: null }  // For deletion
