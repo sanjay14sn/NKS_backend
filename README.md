@@ -175,7 +175,7 @@ curl -X POST http://localhost:5000/api/categories \
 
 ### Products
 
-#### 10. Get All Products
+#### 10. Get All Products76
 ```bash
 GET /api/products?page=1&limit=10&category=CATEGORY_ID&search=LED&minPrice=100&maxPrice=1000
 
@@ -303,6 +303,24 @@ GET /api/favorites
 curl -X GET http://localhost:5000/api/favorites \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
+
+#### 22. all count
+
+# Get dashboard stats (includes all your requested counts)
+curl -X GET http://localhost:5000/api/stats/dashboard \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+
+# Get detailed user statistics
+curl -X GET http://localhost:5000/api/stats/users \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+
+# Get order statistics
+curl -X GET http://localhost:5000/api/stats/orders \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+
+# Get product statistics
+curl -X GET http://localhost:5000/api/stats/products \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
 
 ## User Roles
 
