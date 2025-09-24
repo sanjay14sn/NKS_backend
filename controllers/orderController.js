@@ -2,29 +2,28 @@ const Order = require('../models/Order');
 const Product = require('../models/Product');
 
 // Create order
+// Create order
 const createOrder = async (req, res) => {
   try {
     const { items, shippingAddress, paymentMethod, notes } = req.body;
 
-    // Validate and process order items
+    // Validate required shipping fields
+    if (!shippingAddress || !shippingAddress.street || !shippingAddress.city || !shippingAddress.state || !shippingAddress.zipCode) {
+      return res.status(400).json({ error: 'Incomplete shipping address' });
+    }
+
+    // Process items
     let total = 0;
     const processedItems = [];
 
     for (const item of items) {
       const product = await Product.findById(item.product);
-      
       if (!product) {
-        return res.status(400).json({
-          error: `Product not found: ${item.product}`
-        });
+        return res.status(400).json({ error: `Product not found: ${item.product}` });
       }
-
       if (!product.isActive) {
-        return res.status(400).json({
-          error: `Product is not available: ${product.title}`
-        });
+        return res.status(400).json({ error: `Product is not available: ${product.title}` });
       }
-
       if (product.stock < item.quantity) {
         return res.status(400).json({
           error: `Insufficient stock for ${product.title}. Available: ${product.stock}, Requested: ${item.quantity}`
@@ -46,12 +45,21 @@ const createOrder = async (req, res) => {
       await product.save();
     }
 
-    // Create order
+    // Create order with new address fields
     const order = new Order({
       user: req.user.id,
       items: processedItems,
       total,
-      shippingAddress,
+      shippingAddress: {
+        nickname: shippingAddress.nickname || 'Home',
+        street: shippingAddress.street,
+        city: shippingAddress.city,
+        state: shippingAddress.state,
+        zipCode: shippingAddress.zipCode,
+        country: shippingAddress.country || 'India',
+        latitude: shippingAddress.latitude,
+        longitude: shippingAddress.longitude
+      },
       paymentMethod: paymentMethod || 'cod',
       notes
     });
@@ -65,9 +73,7 @@ const createOrder = async (req, res) => {
     });
   } catch (error) {
     console.error('Create order error:', error);
-    res.status(500).json({
-      error: 'Failed to place order'
-    });
+    res.status(500).json({ error: 'Failed to place order' });
   }
 };
 

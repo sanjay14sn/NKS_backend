@@ -40,11 +40,14 @@ const orderSchema = new mongoose.Schema({
     default: 'placed'
   },
   shippingAddress: {
+    nickname: { type: String, default: 'Home' }, // 🟢 New field
     street: { type: String, required: true },
     city: { type: String, required: true },
     state: { type: String, required: true },
     zipCode: { type: String, required: true },
-    country: { type: String, default: 'India' }
+    country: { type: String, default: 'India' },
+    latitude: { type: Number },  // 🟢 New field
+    longitude: { type: Number }  // 🟢 New field
   },
   paymentMethod: {
     type: String,
