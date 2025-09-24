@@ -155,10 +155,12 @@ const validateOrder = [
 ];
 
 // Parameter validation
-const validateObjectId = [
-  param('id').isMongoId().withMessage('Invalid ID format'),
+// Dynamic ObjectId validation
+const validateObjectId = (paramName = 'id') => [
+  param(paramName).isMongoId().withMessage('Invalid ID format'),
   handleValidationErrors
 ];
+
 
 // Query validation for pagination
 const validatePagination = [
