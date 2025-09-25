@@ -18,6 +18,10 @@ const validateUserSignup = [
     .trim()
     .isLength({ min: 2, max: 100 })
     .withMessage('Name must be between 2 and 100 characters'),
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please enter a valid email address'),
   body('phone')
     .isMobilePhone('en-IN')
     .withMessage('Please enter a valid Indian phone number'),
@@ -41,6 +45,10 @@ const validateShopOwnerSignup = [
     .trim()
     .isLength({ min: 2, max: 100 })
     .withMessage('Name must be between 2 and 100 characters'),
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please enter a valid email address'),
   body('phone')
     .isMobilePhone('en-IN')
     .withMessage('Please enter a valid Indian phone number'),
@@ -64,11 +72,23 @@ const validateShopOwnerSignup = [
 // Login validation
 const validateLogin = [
   body('phone')
+    .optional()
     .isMobilePhone('en-IN')
     .withMessage('Please enter a valid phone number'),
+  body('email')
+    .optional()
+    .isEmail()
+    .withMessage('Please enter a valid email address'),
   body('password')
     .notEmpty()
     .withMessage('Password is required'),
+  body()
+    .custom((value, { req }) => {
+      if (!req.body.phone && !req.body.email) {
+        throw new Error('Please provide either phone number or email address');
+      }
+      return true;
+    }),
   handleValidationErrors
 ];
 

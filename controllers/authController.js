@@ -14,15 +14,18 @@ const generateToken = (userId) => {
 // ===================== SIGNUP USER =====================
 const signupUser = async (req, res) => {
   try {
-    const { name, phone, password, referral } = req.body;
+    const { name, email, phone, password, referral } = req.body;
 
-    const existingUser = await User.findOne({ phone });
+    const existingUser = await User.findOne({ 
+      $or: [{ phone }, { email }] 
+    });
     if (existingUser) {
-      return res.status(400).json({ error: 'User with this phone number already exists' });
+      return res.status(400).json({ error: 'User with this phone number or email already exists' });
     }
 
     const user = new User({
       name,
+      email,
       phone,
       passwordHash: password, // ⚠️ ensure hashing in User model
       role: 'user',
@@ -38,6 +41,7 @@ const signupUser = async (req, res) => {
       user: {
         id: user._id,
         name: user.name,
+        email: user.email,
         phone: user.phone,
         role: user.role,
         referral: user.referral,
@@ -52,19 +56,22 @@ const signupUser = async (req, res) => {
 // ===================== SIGNUP SHOP OWNER/ELECTRICIAN =====================
 const signupShopOwner = async (req, res) => {
   try {
-    const { name, phone, password, gstNumber, shopName, role } = req.body;
+    const { name, email, phone, password, gstNumber, shopName, role } = req.body;
 
     if (!['shopowner', 'electrician'].includes(role)) {
       return res.status(400).json({ error: 'Invalid role. Must be shopowner or electrician' });
     }
 
-    const existingUser = await User.findOne({ phone });
+    const existingUser = await User.findOne({ 
+      $or: [{ phone }, { email }] 
+    });
     if (existingUser) {
-      return res.status(400).json({ error: 'User with this phone number already exists' });
+      return res.status(400).json({ error: 'User with this phone number or email already exists' });
     }
 
     const shopOwner = new User({
       name,
+      email,
       phone,
       passwordHash: password, // ⚠️ hashing handled in User model
       role,
@@ -81,6 +88,7 @@ const signupShopOwner = async (req, res) => {
       user: {
         id: shopOwner._id,
         name: shopOwner.name,
+        email: shopOwner.email,
         phone: shopOwner.phone,
         role: shopOwner.role,
         gstNumber: shopOwner.gstNumber,
