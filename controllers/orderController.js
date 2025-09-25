@@ -1,5 +1,7 @@
 const Order = require('../models/Order');
 const Product = require('../models/Product');
+const User = require('../models/User');
+const { sendOrderConfirmationEmail, sendOrderStatusUpdateEmail } = require('../config/email');
 
 // ===================== NOTIFICATION HELPER =====================
 const sendNotification = async (userId, title, message, type, data = {}) => {
@@ -94,6 +96,9 @@ const createOrder = async (req, res) => {
     await order.save();
     await order.populate('items.product', 'title images');
 
+    // Get user details for email
+    const user = await User.findById(req.user.id);
+    
     // Send notification for order placed
     await sendNotification(
       req.user.id,
@@ -103,6 +108,19 @@ const createOrder = async (req, res) => {
       { orderId: order._id, total: order.total }
     );
 
+    // Send email confirmation
+    if (user && user.email) {
+      try {
+        const emailResult = await sendOrderConfirmationEmail(order, user);
+        if (emailResult.success) {
+          console.log('✅ Order confirmation email sent successfully');
+        } else {
+          console.error('❌ Failed to send order confirmation email:', emailResult.error);
+        }
+      } catch (emailError) {
+        console.error('❌ Email sending error:', emailError);
+      }
+    }
     res.status(201).json({
       message: 'Order placed successfully',
       order
@@ -259,6 +277,9 @@ const updateOrderStatus = async (req, res) => {
     order.status = status;
     await order.save();
 
+    // Get user details for email
+    const userForEmail = await User.findById(order.user._id);
+
     // Send notification for status change
     const statusMessages = {
       placed: 'Your order has been placed successfully! 📦',
@@ -280,6 +301,19 @@ const updateOrderStatus = async (req, res) => {
       }
     );
 
+    // Send email notification for status update
+    if (userForEmail && userForEmail.email) {
+      try {
+        const emailResult = await sendOrderStatusUpdateEmail(order, userForEmail, status);
+        if (emailResult.success) {
+          console.log('✅ Order status update email sent successfully');
+        } else {
+          console.error('❌ Failed to send status update email:', emailResult.error);
+        }
+      } catch (emailError) {
+        console.error('❌ Email sending error:', emailError);
+      }
+    }
     return res.status(200).json({
       message: 'Order status updated successfully',
       order
