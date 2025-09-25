@@ -11,7 +11,7 @@ const emailTemplates = {
       email: process.env.FROM_EMAIL,
       name: process.env.FROM_NAME || 'Shopping App Store'
     },
-    subject: `🎉 Order Confirmation - #${order._id.toString().slice(-6)}`,
+    subject: `Order Confirmation - #${order._id.toString().slice(-6)}`,
     html: `
       <!DOCTYPE html>
       <html>
@@ -57,7 +57,7 @@ const emailTemplates = {
       <body>
         <div class="container">
           <div class="header">
-            <div class="logo">🛍️ Shopping App</div>
+            <div class="logo">NKS Traders</div>
             <div class="header-subtitle">Your order has been confirmed!</div>
           </div>
           
