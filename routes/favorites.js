@@ -10,17 +10,13 @@ const {
 const { authenticate, isUser } = require('../middleware/auth');
 const { validateObjectId, validatePagination } = require('../middleware/validation');
 
-// All routes require authentication
+// Protect all routes
 router.use(authenticate);
 router.use(isUser);
 
-// Toggle favorite
+// Routes
 router.post('/toggle/:productId', validateObjectId, toggleFavorite);
-
-// Get user favorites
 router.get('/', validatePagination, getFavorites);
-
-// Check if product is favorite
 router.get('/:productId', validateObjectId, checkFavorite);
 
 module.exports = router;

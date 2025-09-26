@@ -1,7 +1,9 @@
 const User = require('../models/User');
 const Product = require('../models/Product');
 
-// Toggle favorite product
+/**
+ * Toggle favorite product for authenticated user
+ */
 const toggleFavorite = async (req, res) => {
   try {
     const { productId } = req.params;
@@ -9,23 +11,17 @@ const toggleFavorite = async (req, res) => {
 
     // Check if product exists
     const product = await Product.findById(productId);
-    if (!product) {
-      return res.status(404).json({ error: 'Product not found' });
-    }
+    if (!product) return res.status(404).json({ error: 'Product not found' });
 
+    // Find user
     const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
+    if (!user) return res.status(404).json({ error: 'User not found' });
 
-    // Compare ObjectId as string
+    // Toggle favorite
     const isFavorite = user.favorites.some(fav => fav.toString() === productId);
-
     if (isFavorite) {
-      // Remove from favorites
       user.favorites = user.favorites.filter(fav => fav.toString() !== productId);
     } else {
-      // Add to favorites
       user.favorites.push(productId);
     }
 
@@ -44,31 +40,30 @@ const toggleFavorite = async (req, res) => {
   }
 };
 
-// Get user favorites with pagination
+/**
+ * Get user favorites with optional pagination
+ */
 const getFavorites = async (req, res) => {
   try {
     const { page = 1, limit = 10 } = req.query;
-    const pageNum = parseInt(page);
-    const limitNum = parseInt(limit);
+    const pageNum = Math.max(parseInt(page), 1);
+    const limitNum = Math.max(parseInt(limit), 1);
     const skip = (pageNum - 1) * limitNum;
 
-    const user = await User.findById(req.user.id)
-      .populate({
-        path: 'favorites',
-        populate: { path: 'category', select: 'title slug' },
-        options: { skip, limit: limitNum },
-      });
+    const user = await User.findById(req.user.id).populate({
+      path: 'favorites',
+      populate: { path: 'category', select: 'title slug' },
+      options: { skip, limit: limitNum },
+    });
 
     if (!user) return res.status(404).json({ error: 'User not found' });
-
-    const totalFavorites = user.favorites.length;
 
     res.json({
       favorites: user.favorites,
       pagination: {
         current: pageNum,
-        pages: Math.ceil(totalFavorites / limitNum),
-        total: totalFavorites,
+        pages: Math.ceil(user.favorites.length / limitNum),
+        total: user.favorites.length,
         limit: limitNum,
       },
     });
@@ -78,16 +73,16 @@ const getFavorites = async (req, res) => {
   }
 };
 
-// Check if product is favorite
+/**
+ * Check if a product is favorited by the user
+ */
 const checkFavorite = async (req, res) => {
   try {
     const { productId } = req.params;
     const user = await User.findById(req.user.id);
-
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     const isFavorite = user.favorites.some(fav => fav.toString() === productId);
-
     res.json({ isFavorite });
   } catch (error) {
     console.error('Check favorite error:', error);
