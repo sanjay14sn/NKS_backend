@@ -4,19 +4,22 @@ const Product = require('../models/Product');
 // Toggle favorite product
 const toggleFavorite = async (req, res) => {
   try {
-    const productId = req.params.productId;
+    const { productId } = req.params;
     const userId = req.user.id;
 
     // Check if product exists
     const product = await Product.findById(productId);
     if (!product) {
-      return res.status(404).json({
-        error: 'Product not found'
-      });
+      return res.status(404).json({ error: 'Product not found' });
     }
 
     const user = await User.findById(userId);
-    const isFavorite = user.favorites.includes(productId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Compare ObjectId as string
+    const isFavorite = user.favorites.some(fav => fav.toString() === productId);
 
     if (isFavorite) {
       // Remove from favorites
@@ -29,23 +32,22 @@ const toggleFavorite = async (req, res) => {
     await user.save();
 
     res.json({
-      message: isFavorite ? 'Product removed from favorites' : 'Product added to favorites',
+      message: isFavorite
+        ? 'Product removed from favorites'
+        : 'Product added to favorites',
       isFavorite: !isFavorite,
-      favoritesCount: user.favorites.length
+      favoritesCount: user.favorites.length,
     });
   } catch (error) {
     console.error('Toggle favorite error:', error);
-    res.status(500).json({
-      error: 'Failed to toggle favorite'
-    });
+    res.status(500).json({ error: 'Failed to toggle favorite' });
   }
 };
 
-// Get user favorites
+// Get user favorites with pagination
 const getFavorites = async (req, res) => {
   try {
     const { page = 1, limit = 10 } = req.query;
-    
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
@@ -53,15 +55,11 @@ const getFavorites = async (req, res) => {
     const user = await User.findById(req.user.id)
       .populate({
         path: 'favorites',
-        populate: {
-          path: 'category',
-          select: 'title slug'
-        },
-        options: {
-          skip,
-          limit: limitNum
-        }
+        populate: { path: 'category', select: 'title slug' },
+        options: { skip, limit: limitNum },
       });
+
+    if (!user) return res.status(404).json({ error: 'User not found' });
 
     const totalFavorites = user.favorites.length;
 
@@ -71,38 +69,34 @@ const getFavorites = async (req, res) => {
         current: pageNum,
         pages: Math.ceil(totalFavorites / limitNum),
         total: totalFavorites,
-        limit: limitNum
-      }
+        limit: limitNum,
+      },
     });
   } catch (error) {
     console.error('Get favorites error:', error);
-    res.status(500).json({
-      error: 'Failed to fetch favorites'
-    });
+    res.status(500).json({ error: 'Failed to fetch favorites' });
   }
 };
 
 // Check if product is favorite
 const checkFavorite = async (req, res) => {
   try {
-    const productId = req.params.productId;
+    const { productId } = req.params;
     const user = await User.findById(req.user.id);
-    
-    const isFavorite = user.favorites.includes(productId);
 
-    res.json({
-      isFavorite
-    });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const isFavorite = user.favorites.some(fav => fav.toString() === productId);
+
+    res.json({ isFavorite });
   } catch (error) {
     console.error('Check favorite error:', error);
-    res.status(500).json({
-      error: 'Failed to check favorite status'
-    });
+    res.status(500).json({ error: 'Failed to check favorite status' });
   }
 };
 
 module.exports = {
   toggleFavorite,
   getFavorites,
-  checkFavorite
+  checkFavorite,
 };
