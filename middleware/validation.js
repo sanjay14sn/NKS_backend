@@ -1,6 +1,9 @@
-const { body, param, query, validationResult } = require('express-validator');
+const { body, query, validationResult } = require('express-validator');
+const mongoose = require('mongoose'); // ✅ only once at the top
 
+// ===========================
 // Handle validation errors
+// ===========================
 const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -12,7 +15,9 @@ const handleValidationErrors = (req, res, next) => {
   next();
 };
 
-// User validation rules
+// ===========================
+// User validation
+// ===========================
 const validateUserSignup = [
   body('name')
     .trim()
@@ -39,7 +44,9 @@ const validateUserSignup = [
   handleValidationErrors
 ];
 
-// ShopOwner validation rules
+// ===========================
+// ShopOwner validation
+// ===========================
 const validateShopOwnerSignup = [
   body('name')
     .trim()
@@ -69,7 +76,9 @@ const validateShopOwnerSignup = [
   handleValidationErrors
 ];
 
+// ===========================
 // Login validation
+// ===========================
 const validateLogin = [
   body('phone')
     .optional()
@@ -92,7 +101,9 @@ const validateLogin = [
   handleValidationErrors
 ];
 
+// ===========================
 // Category validation
+// ===========================
 const validateCategory = [
   body('title')
     .trim()
@@ -110,8 +121,9 @@ const validateCategory = [
   handleValidationErrors
 ];
 
+// ===========================
 // Product validation
-// Product validation
+// ===========================
 const validateProduct = [
   body('title')
     .trim()
@@ -141,8 +153,9 @@ const validateProduct = [
   handleValidationErrors
 ];
 
-
+// ===========================
 // Order validation
+// ===========================
 const validateOrder = [
   body('items')
     .isArray({ min: 1 })
@@ -174,15 +187,33 @@ const validateOrder = [
   handleValidationErrors
 ];
 
-// Parameter validation
-// Dynamic ObjectId validation
-const validateObjectId = (paramName = 'id') => [
-  param(paramName).isMongoId().withMessage('Invalid ID format'),
-  handleValidationErrors
-];
+// ===========================
+// ObjectId validation
+// ===========================
+const validateObjectId = (paramName = 'id') => {
+  return (req, res, next) => {
+    const value = req.params?.[paramName];
+
+    if (!value) {
+      return res.status(400).json({ error: `${paramName} is required in the route params` });
+    }
+
+    const cleanId = decodeURIComponent(value).trim();
+
+    if (!mongoose.Types.ObjectId.isValid(cleanId)) {
+      return res.status(400).json({ error: `Invalid ${paramName} format` });
+    }
+
+    // sanitize back into params
+    req.params[paramName] = cleanId;
+    next();
+  };
+};
 
 
-// Query validation for pagination
+// ===========================
+// Pagination validation
+// ===========================
 const validatePagination = [
   query('page')
     .optional()
@@ -199,7 +230,11 @@ const validatePagination = [
   handleValidationErrors
 ];
 
+// ===========================
+// Export
+// ===========================
 module.exports = {
+  handleValidationErrors,
   validateUserSignup,
   validateShopOwnerSignup,
   validateLogin,
@@ -207,6 +242,5 @@ module.exports = {
   validateProduct,
   validateOrder,
   validateObjectId,
-  validatePagination,
-  handleValidationErrors
+  validatePagination
 };
