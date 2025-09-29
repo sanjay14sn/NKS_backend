@@ -1,7 +1,26 @@
 const admin = require("firebase-admin");
-const serviceAccount = require("./serviceAccountKey.json");
+const fs = require("fs");
+const path = require("path");
 
-// ✅ Initialize Firebase only once
+// ✅ Determine environment: local or Render
+let serviceAccount;
+
+if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+  // On Render (or any public environment)
+  serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+  console.log("✅ Using Firebase service account from environment variable");
+} else {
+  // Local development
+  const serviceAccountPath = path.join(__dirname, "serviceAccountKey.json");
+  if (!fs.existsSync(serviceAccountPath)) {
+    console.error("❌ Missing local serviceAccountKey.json file");
+    process.exit(1);
+  }
+  serviceAccount = require(serviceAccountPath);
+  console.log("✅ Using local serviceAccountKey.json");
+}
+
+// Initialize Firebase only once
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
@@ -56,26 +75,19 @@ const sendNotificationToMultipleDevices = async (fcmTokens, title, body, data = 
     const response = await admin.messaging().sendMulticast(message);
     console.log(`✅ Push notifications sent: ${response.successCount}/${fcmTokens.length}`);
 
-    if (response.failureCount > 0) {
-      const failedTokens = [];
-      response.responses.forEach((resp, idx) => {
-        if (!resp.success) {
-          failedTokens.push(fcmTokens[idx]);
-          console.error(`❌ Failed to send to token ${idx}:`, resp.error);
-        }
-      });
-      return {
-        success: true,
-        successCount: response.successCount,
-        failureCount: response.failureCount,
-        failedTokens,
-      };
-    }
+    const failedTokens = [];
+    response.responses.forEach((resp, idx) => {
+      if (!resp.success) {
+        failedTokens.push(fcmTokens[idx]);
+        console.error(`❌ Failed to send to token ${idx}:`, resp.error);
+      }
+    });
 
     return {
       success: true,
       successCount: response.successCount,
       failureCount: response.failureCount,
+      failedTokens,
     };
   } catch (error) {
     console.error("❌ Multicast push notification error:", error);
