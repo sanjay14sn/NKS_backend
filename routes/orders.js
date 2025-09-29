@@ -7,7 +7,8 @@ const {
   getUserOrders,
   getAllOrders,
   getOrder,
-  updateOrderStatus
+  updateOrderStatus,
+  cancelOrder
 } = require('../controllers/orderController');
 
 const { authenticate, isAdmin, isUser } = require('../middleware/auth');
@@ -18,13 +19,13 @@ router.post('/', authenticate, isUser, validateOrder, createOrder);
 router.get('/my-orders', authenticate, isUser, validatePagination, getUserOrders);
 
 // Shared routes (users can view their own orders, admins can view any)
-// 💡 FIX: MUST CALL validateObjectId()
-router.get('/:id', authenticate, validateObjectId(), getOrder); 
+router.get('/:id', authenticate, validateObjectId('id'), getOrder); 
 
 // Admin only routes
 router.get('/', authenticate, isAdmin, validatePagination, getAllOrders);
 
-// 💡 FIX: MUST CALL validateObjectId()
-router.put('/:id/status', authenticate, isAdmin, validateObjectId(), updateOrderStatus);
+router.put('/:id/status', authenticate, isAdmin, validateObjectId('id'), updateOrderStatus);
 
+// User cancel order route
+router.put('/:id/cancel', authenticate, isUser, validateObjectId('id'), cancelOrder);
 module.exports = router;

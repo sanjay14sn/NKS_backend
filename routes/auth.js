@@ -13,7 +13,8 @@ const {
   deleteAddress,
   getAddresses,
   uploadProfilePicture,
-  deleteProfilePicture
+  deleteProfilePicture,
+  updateFCMToken
 } = require('../controllers/authController');
 
 // Middlewares
@@ -109,5 +110,12 @@ router.put('/profile/picture', authenticate, uploadProfilePic.single('profilePic
  * @access  Private
  */
 router.delete('/profile/picture', authenticate, deleteProfilePicture);
+
+/**
+ * @route   PUT /api/auth/fcm-token
+ * @desc    Update FCM token for push notifications
+ * @access  Private
+ */
+router.put('/fcm-token', authenticate, updateFCMToken);
 
 module.exports = router;

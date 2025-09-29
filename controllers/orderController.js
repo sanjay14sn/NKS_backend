@@ -3,56 +3,65 @@ const Product = require('../models/Product');
 const User = require('../models/User');
 const { sendOrderConfirmationEmail, sendOrderStatusUpdateEmail } = require('../config/email');
 
+const { sendNotificationToDevice } = require('../config/firebase'); // ✅ import Firebase service
+
+// ===================== NOTIFICATION HELPER =====================
+
+// ===================== NOTIFICATION HELPER =====================
 // ===================== NOTIFICATION HELPER =====================
 const sendNotification = async (userId, title, message, type, data = {}) => {
   try {
-    // TODO: Implement push notification service (FCM, OneSignal, etc.)
-    // For now, we'll just log the notification
-    console.log(`📱 NOTIFICATION: ${title} - ${message} (User: ${userId}, Type: ${type})`);
-    
-    // You can integrate with FCM, OneSignal, or other services here
-    // Example structure for future implementation:
-    /*
-    const notification = {
-      userId,
+    const user = await User.findById(userId);
+
+    if (!user) {
+      console.warn(`⚠️ User not found for notification: ${userId}`);
+      return;
+    }
+
+    if (!user.fcmToken) { 
+      console.warn(`⚠️ No FCM token for user: ${userId}`);
+      return;
+    }
+
+    // 🔑 Ensure all data values are strings
+    const stringifyData = {};
+    for (const key in data) {
+      stringifyData[key] = String(data[key]);
+    }
+
+    // Send push notification
+    const result = await sendNotificationToDevice(
+      user.fcmToken,
       title,
       message,
-      type,
-      data,
-      timestamp: new Date()
-    };
-    
-    // Send to notification service
-    await notificationService.send(notification);
-    */
+      { ...stringifyData, type }  // also add type as string
+    );
+
+    console.log(`📱 Notification sent to ${user.name || userId}:`, result);
   } catch (error) {
-    console.error('Notification send error:', error);
+    console.error('❌ Notification send error:', error);
   }
 };
 
-// Create order
+
+// ===================== ORDER CONTROLLERS =====================
+
 // Create order
 const createOrder = async (req, res) => {
   try {
     const { items, shippingAddress, paymentMethod, notes } = req.body;
 
-    // Validate required shipping fields
     if (!shippingAddress || !shippingAddress.street || !shippingAddress.city || !shippingAddress.state || !shippingAddress.zipCode) {
       return res.status(400).json({ error: 'Incomplete shipping address' });
     }
 
-    // Process items
     let total = 0;
     const processedItems = [];
 
     for (const item of items) {
       const product = await Product.findById(item.product);
-      if (!product) {
-        return res.status(400).json({ error: `Product not found: ${item.product}` });
-      }
-      if (!product.isActive) {
-        return res.status(400).json({ error: `Product is not available: ${product.title}` });
-      }
+      if (!product) return res.status(400).json({ error: `Product not found: ${item.product}` });
+      if (!product.isActive) return res.status(400).json({ error: `Product is not available: ${product.title}` });
       if (product.stock < item.quantity) {
         return res.status(400).json({
           error: `Insufficient stock for ${product.title}. Available: ${product.stock}, Requested: ${item.quantity}`
@@ -69,12 +78,10 @@ const createOrder = async (req, res) => {
         title: product.title
       });
 
-      // Decrease stock
       product.stock -= item.quantity;
       await product.save();
     }
 
-    // Create order with new address fields
     const order = new Order({
       user: req.user.id,
       items: processedItems,
@@ -96,10 +103,9 @@ const createOrder = async (req, res) => {
     await order.save();
     await order.populate('items.product', 'title images');
 
-    // Get user details for email
     const user = await User.findById(req.user.id);
-    
-    // Send notification for order placed
+
+    // ✅ Send push notification
     await sendNotification(
       req.user.id,
       'Order Placed Successfully! 🎉',
@@ -108,23 +114,18 @@ const createOrder = async (req, res) => {
       { orderId: order._id, total: order.total }
     );
 
-    // Send email confirmation
+    // ✅ Send email confirmation
     if (user && user.email) {
       try {
         const emailResult = await sendOrderConfirmationEmail(order, user);
-        if (emailResult.success) {
-          console.log('✅ Order confirmation email sent successfully');
-        } else {
-          console.error('❌ Failed to send order confirmation email:', emailResult.error);
-        }
+        if (emailResult.success) console.log('✅ Order confirmation email sent');
+        else console.error('❌ Failed to send order confirmation email:', emailResult.error);
       } catch (emailError) {
         console.error('❌ Email sending error:', emailError);
       }
     }
-    res.status(201).json({
-      message: 'Order placed successfully',
-      order
-    });
+
+    res.status(201).json({ message: 'Order placed successfully', order });
   } catch (error) {
     console.error('Create order error:', error);
     res.status(500).json({ error: 'Failed to place order' });
@@ -239,48 +240,34 @@ const getOrder = async (req, res) => {
 };
 
 // Update order status (Admin only)
+
+// Update order status (Admin only)
 const updateOrderStatus = async (req, res) => {
   try {
     const { status } = req.body;
-
-    // Validate status explicitly
     const allowedStatuses = ['placed', 'processing', 'shipped', 'delivered', 'cancelled'];
     if (!allowedStatuses.includes(status)) {
       return res.status(400).json({ error: `Invalid status: ${status}` });
     }
 
-    // Find the order first
     const order = await Order.findById(req.params.id)
       .populate('items.product', 'title images')
       .populate('user', 'name');
 
-    if (!order) {
-      return res.status(404).json({ error: 'Order not found' });
-    }
+    if (!order) return res.status(404).json({ error: 'Order not found' });
 
-    // Optional: prevent invalid transitions
     const invalidTransitions = {
-      delivered: ['placed', 'processing', 'shipped'], // once delivered, can't go back
-      cancelled: ['delivered'] // cannot cancel delivered order
+      delivered: ['placed', 'processing', 'shipped'],
+      cancelled: ['delivered']
     };
 
-    if (
-      invalidTransitions[order.status] &&
-      invalidTransitions[order.status].includes(status)
-    ) {
-      return res.status(400).json({
-        error: `Cannot change status from ${order.status} to ${status}`
-      });
+    if (invalidTransitions[order.status] && invalidTransitions[order.status].includes(status)) {
+      return res.status(400).json({ error: `Cannot change status from ${order.status} to ${status}` });
     }
 
-    // Update and save order
     order.status = status;
     await order.save();
 
-    // Get user details for email
-    const userForEmail = await User.findById(order.user._id);
-
-    // Send notification for status change
     const statusMessages = {
       placed: 'Your order has been placed successfully! 📦',
       processing: 'Your order is now being processed! ⚙️',
@@ -289,46 +276,109 @@ const updateOrderStatus = async (req, res) => {
       cancelled: 'Your order has been cancelled. ❌'
     };
 
+    // ✅ Push notification
     await sendNotification(
       order.user._id,
       'Order Status Updated',
       statusMessages[status],
       'order_status_change',
-      {
-        orderId: order._id,
-        status,
-        orderNumber: order._id.toString().slice(-6)
-      }
+      { orderId: order._id, status, orderNumber: order._id.toString().slice(-6) }
     );
 
-    // Send email notification for status update
+    // ✅ Email notification
+    const userForEmail = await User.findById(order.user._id);
     if (userForEmail && userForEmail.email) {
       try {
         const emailResult = await sendOrderStatusUpdateEmail(order, userForEmail, status);
-        if (emailResult.success) {
-          console.log('✅ Order status update email sent successfully');
-        } else {
-          console.error('❌ Failed to send status update email:', emailResult.error);
-        }
+        if (emailResult.success) console.log('✅ Order status email sent');
+        else console.error('❌ Failed to send status email:', emailResult.error);
       } catch (emailError) {
         console.error('❌ Email sending error:', emailError);
       }
     }
-    return res.status(200).json({
-      message: 'Order status updated successfully',
-      order
-    });
+
+    res.status(200).json({ message: 'Order status updated successfully', order });
   } catch (error) {
     console.error('Update order status error:', error);
-    return res.status(500).json({ error: 'Failed to update order status' });
+    res.status(500).json({ error: 'Failed to update order status' });
   }
 };
 
+// Cancel order (User only - their own orders)
+const cancelOrder = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id)
+      .populate('items.product', 'title images')
+      .populate('user', 'name');
+
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    // Users can only cancel their own orders
+    if (order.user._id.toString() !== req.user.id) {
+      return res.status(403).json({ error: 'You can only cancel your own orders' });
+    }
+
+    // Check if order can be cancelled
+    if (order.status === 'cancelled') {
+      return res.status(400).json({ error: 'Order is already cancelled' });
+    }
+
+    if (order.status === 'delivered') {
+      return res.status(400).json({ error: 'Cannot cancel delivered orders' });
+    }
+
+    if (order.status === 'shipped') {
+      return res.status(400).json({ error: 'Cannot cancel shipped orders. Please contact support.' });
+    }
+
+    // Restore stock for cancelled items
+    for (const item of order.items) {
+      const product = await Product.findById(item.product._id);
+      if (product) {
+        product.stock += item.quantity;
+        await product.save();
+      }
+    }
+
+    // Update order status
+    order.status = 'cancelled';
+    await order.save();
+
+    // Send notification for cancellation
+    await sendNotification(
+      order.user._id,
+      'Order Cancelled',
+      `Your order #${order._id.toString().slice(-6)} has been cancelled successfully.`,
+      'order_cancelled',
+      {
+        orderId: order._id,
+        orderNumber: order._id.toString().slice(-6)
+      }
+    );
+
+    res.json({
+      message: 'Order cancelled successfully',
+      order
+    });
+  } catch (error) {
+    console.error('Cancel order error:', error);
+    res.status(500).json({ error: 'Failed to cancel order' });
+  }
+};
 
 module.exports = {
   createOrder,
   getUserOrders,
   getAllOrders,
   getOrder,
-  updateOrderStatus
+  updateOrderStatus,
+  cancelOrder
 };
+
+
+
+
+
+

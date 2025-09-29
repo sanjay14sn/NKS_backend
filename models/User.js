@@ -78,6 +78,15 @@ const userSchema = new mongoose.Schema({
   profilePicture: {
     url: { type: String, default: null },       // Cloudinary URL
     public_id: { type: String, default: null }  // For deletion
+  },
+  fcmToken: {
+    type: String,
+    default: null
+  },
+  deviceInfo: {
+    platform: { type: String, enum: ['android', 'ios', 'web'], default: null },
+    deviceId: { type: String, default: null },
+    appVersion: { type: String, default: null }
   }
 }, {
   timestamps: true

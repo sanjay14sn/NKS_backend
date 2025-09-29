@@ -104,8 +104,26 @@ const validateLogin = [
 // ===========================
 // Category validation
 // ===========================
-const validateCategory = [
+const validateCreateCategory = [
   body('title')
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage('Title must be between 2 and 100 characters'),
+  body('description')
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Description cannot exceed 500 characters'),
+  body('slug')
+    .optional()
+    .matches(/^[a-z0-9-]+$/)
+    .withMessage('Slug can only contain lowercase letters, numbers, and hyphens'),
+  handleValidationErrors
+];
+
+const validateUpdateCategory = [
+  body('title')
+    .optional()
     .trim()
     .isLength({ min: 2, max: 100 })
     .withMessage('Title must be between 2 and 100 characters'),
@@ -238,7 +256,8 @@ module.exports = {
   validateUserSignup,
   validateShopOwnerSignup,
   validateLogin,
-  validateCategory,
+  validateCreateCategory,
+  validateUpdateCategory,
   validateProduct,
   validateOrder,
   validateObjectId,

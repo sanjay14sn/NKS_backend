@@ -104,7 +104,7 @@ const signupShopOwner = async (req, res) => {
 // ===================== LOGIN =====================
 const login = async (req, res) => {
   try {
-    const { phone, email, password } = req.body;
+    const { phone, email, password, fcmToken, deviceInfo } = req.body;
 
     if (!phone && !email) {
       return res.status(400).json({ error: 'Please provide phone or email' });
@@ -121,6 +121,21 @@ const login = async (req, res) => {
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) return res.status(401).json({ error: 'Invalid credentials' });
 
+    // Update FCM token and device info if provided
+    if (fcmToken) {
+      user.fcmToken = fcmToken;
+    }
+    if (deviceInfo) {
+      user.deviceInfo = {
+        platform: deviceInfo.platform,
+        deviceId: deviceInfo.deviceId,
+        appVersion: deviceInfo.appVersion
+      };
+    }
+    
+    if (fcmToken || deviceInfo) {
+      await user.save();
+    }
     const token = generateToken(user._id);
 
     res.json({
@@ -377,6 +392,38 @@ const deleteProfilePicture = async (req, res) => {
   }
 };
 
+// ===================== UPDATE FCM TOKEN =====================
+const updateFCMToken = async (req, res) => {
+  try {
+    const { fcmToken, deviceInfo } = req.body;
+
+    if (!fcmToken) {
+      return res.status(400).json({ error: 'FCM token is required' });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    user.fcmToken = fcmToken;
+    if (deviceInfo) {
+      user.deviceInfo = {
+        platform: deviceInfo.platform,
+        deviceId: deviceInfo.deviceId,
+        appVersion: deviceInfo.appVersion
+      };
+    }
+
+    await user.save();
+
+    res.json({
+      message: 'FCM token updated successfully'
+    });
+  } catch (error) {
+    console.error('Update FCM token error:', error);
+    res.status(500).json({ error: 'Failed to update FCM token' });
+  }
+};
+
 module.exports = {
   signupUser,
   signupShopOwner,
@@ -388,5 +435,6 @@ module.exports = {
   deleteAddress,
   getAddresses,
   uploadProfilePicture,
-  deleteProfilePicture
+  deleteProfilePicture,
+  updateFCMToken
 };
